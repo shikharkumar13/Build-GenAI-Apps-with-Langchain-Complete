@@ -103,27 +103,25 @@ Read them in order. Each one builds directly on the one before it.
 
 | # | Article | What it covers | Read the article |
 |---|---|---|---|
-| 1 | Generative AI basics, and where LangChain actually fits | How LLMs work, what they can't do on their own, and the LangChain ecosystem | [Read Article 1](ADD_LINK_HERE) |
+| 1 | Generative AI basics, and where LangChain actually fits | How LLMs work, what they can't do on their own, and the LangChain ecosystem | [Read Article 1](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-01-genai-basics-langchain.html) |
 | **Part 1** | **Below the framework** | | |
-| 2 | Your first LLM calls: OpenAI and Anthropic, no framework yet | Raw SDK calls, message lists, streaming, and a chat loop by hand | [Read Article 2](ADD_LINK_HERE) |
-| 3 | The multi-provider landscape: Gemini, other providers, and a unified interface | Adding Gemini, comparing providers, and LiteLLM | [Read Article 3](ADD_LINK_HERE) |
-| 4 | Tuning generation: temperature, top-p, and the other parameters | Sampling parameters, reasoning effort, and what each provider accepts | [Read Article 4](ADD_LINK_HERE) |
+| 2 | Your first LLM calls: OpenAI and Anthropic, no framework yet | Raw SDK calls, message lists, streaming, and a chat loop by hand | [Read Article 2](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-02-openai-anthropic-raw-sdks.html) |
+| 3 | The multi-provider landscape: Gemini, other providers, and a unified interface | Adding Gemini, comparing providers, and LiteLLM | [Read Article 3](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-03-multi-provider-litellm.html) |
+| 4 | Tuning generation: temperature, top-p, and the other parameters | Sampling parameters, reasoning effort, and what each provider accepts | [Read Article 4](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-04-generation-parameters.html) |
 | **Part 2** | **LangChain fundamentals** | | |
-| 5 | Setup, and talking to models through LangChain's unified interface | `init_chat_model`, the shared model interface, and the project's `get_model()` helper | [Read Article 5](ADD_LINK_HERE) |
-| 6 | Prompt templates and structured output | `ChatPromptTemplate`, `MessagesPlaceholder`, and `with_structured_output` | [Read Article 6](ADD_LINK_HERE) |
-| 7 | LCEL: the pipe-operator pattern used to compose everything | `Runnable`, chains, `RunnableParallel`, `.batch()` and `.stream()` | [Read Article 7](ADD_LINK_HERE) |
-| 8 | Conversation memory | Session history, why the old memory classes are gone, and `trim_messages` | [Read Article 8](ADD_LINK_HERE) |
+| 5 | Setup, and talking to models through LangChain's unified interface | `init_chat_model`, the shared model interface, and the project's `get_model()` helper | [Read Article 5](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-05-langchain-model-interface.html) |
+| 6 | Prompt templates and structured output | `ChatPromptTemplate`, `MessagesPlaceholder`, and `with_structured_output` | [Read Article 6](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-06-prompt-templates-structured-output.html) |
+| 7 | LCEL: the pipe-operator pattern used to compose everything | `Runnable`, chains, `RunnableParallel`, `.batch()` and `.stream()` | [Read Article 7](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-07-lcel.html) |
+| 8 | Conversation memory | Session history, why the old memory classes are gone, and `trim_messages` | [Read Article 8](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-08-conversation-memory.html) |
 | **Part 3** | **Retrieval (RAG)** | | |
-| 9 | Document loaders and text splitting | `Document`, loading files and PDFs, and `RecursiveCharacterTextSplitter` | [Read Article 9](ADD_LINK_HERE) |
-| 10 | Embeddings and vector stores | What embeddings are, Chroma, and a distance gotcha found by running the code | [Read Article 10](ADD_LINK_HERE) |
-| 11 | Retrievers and a full RAG pipeline | Retrievers, formatting context, and the complete RAG chain | [Read Article 11](ADD_LINK_HERE) |
+| 9 | Document loaders and text splitting | `Document`, loading files and PDFs, and `RecursiveCharacterTextSplitter` | [Read Article 9](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-09-document-loaders-splitting.html) |
+| 10 | Embeddings and vector stores | What embeddings are, Chroma, and a distance gotcha found by running the code | [Read Article 10](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-10-embeddings-vector-stores.html) |
+| 11 | Retrievers and a full RAG pipeline | Retrievers, formatting context, and the complete RAG chain | [Read Article 11](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-11-retrievers-rag-pipeline.html) |
 | **Part 4** | **Tools, agents and production** | | |
-| 12 | Tools and tool calling | `@tool`, `bind_tools`, and the tool-calling loop written by hand | [Read Article 12](ADD_LINK_HERE) |
-| 13 | Agents with `create_agent` | The agent loop automated, checkpointer memory, call limits, and middleware | [Read Article 13](ADD_LINK_HERE) |
-| 14 | Observability with LangSmith | Tracing, `@traceable`, and keeping sensitive data out of traces | [Read Article 14](ADD_LINK_HERE) |
-| 15 | Capstone: the whole assistant, end to end | Every piece assembled into one tested project | [Read Article 15](ADD_LINK_HERE) |
-
-Each article is available as a styled HTML page (best for reading) and as a Markdown file in this repo. The **Read the article** column links to the published version of each one. To read the HTML files directly on GitHub, enable **GitHub Pages** for this repo (`Settings > Pages`, deploy from the `main` branch), or download the repo and open the `.html` files in your browser.
+| 12 | Tools and tool calling | `@tool`, `bind_tools`, and the tool-calling loop written by hand | [Read Article 12](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-12-tools-tool-calling.html) |
+| 13 | Agents with `create_agent` | The agent loop automated, checkpointer memory, call limits, and middleware | [Read Article 13](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-13-agents-create-agent.html) |
+| 14 | Observability with LangSmith | Tracing, `@traceable`, and keeping sensitive data out of traces | [Read Article 14](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-14-langsmith-observability.html) |
+| 15 | Capstone: the whole assistant, end to end | Every piece assembled into one tested project | [Read Article 15](https://shikharkumar13.github.io/Build-GenAI-Apps-with-Langchain-Complete/article-15-capstone.html) |
 
 ## Getting started
 
