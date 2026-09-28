@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agents with `create_agent`</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+thead th code { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 13 / 15 · ~9 min read</span>
+    </div>
+    <h1>Agents with <code>create_agent</code></h1>
+    <p class="dek">Article 12's hand-written tool loop, run for you: create_agent, checkpointer memory that replaces Article 8's deprecated wrapper, and the middleware that keeps an agent from looping on your bill.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#what-create-agent-actually-is">What create_agent is</a><a class="toc-main" href="#calling-it-and-what-comes-back">Calling it</a><a class="toc-main" href="#watching-the-loop-actually-run">Watching the loop run</a><a class="toc-main" href="#closing-the-loop-from-article-8">Memory, from Article 8</a><a class="toc-main" href="#putting-a-ceiling-on-the-loop">A ceiling on the loop</a><a class="toc-main" href="#middleware-and-where-create-agent-stops-being-the-right-layer">Middleware, and beyond</a><a class="toc-main" href="#what-s-next">What's next</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:86.7%"></div></div>
+        <div class="mini-progress-text">Article 13 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>Look back at what Article 12 actually built: call the model, check <code>tool_calls</code>, run the tool, append a <code>ToolMessage</code>, call the model again. That loop, written by hand, is what "agent" means. This article doesn't introduce a new idea, it introduces the tool that runs that exact loop for you: <code>create_agent</code>. It's also where LangGraph finally enters this series, six articles after Article 7 first mentioned it was coming, because this is the first thing in the whole series that genuinely needs it. There's nothing extra to install for it, either: <code>langgraph</code> is a dependency of the <code>langchain</code> package itself, so it has been sitting in your environment since Article 5.</p>
+<h2 id="what-create-agent-actually-is">What <code>create_agent</code> actually is</h2>
+<p><code>create_agent</code>, <code>from langchain.agents import create_agent</code>, is LangChain's current high-level API for building agents, and it's built directly on LangGraph's runtime underneath. It replaces <code>AgentExecutor</code>, LangChain's older agent-building class, and the replacement is more complete than a deprecation warning: <code>AgentExecutor</code> isn't importable from <code>langchain.agents</code> at all anymore, confirmed by trying it directly against the current package. It still exists, just not there, it moved to a separate <code>langchain_classic</code> package, the same migration this series already saw happen to the old memory classes back in Article 8. What it returns isn't a chain in the LCEL sense from Article 7, it's a compiled LangGraph graph, but that graph is still a <code>Runnable</code>, so <code>.invoke()</code> and <code>.stream()</code> work exactly the way they always have since Article 5.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_agent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">models</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_model</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">get_model</span><span class="p">()</span>
+<span class="n">agent</span> <span class="o">=</span> <span class="n">create_agent</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">check_subscription_status</span><span class="p">],</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant for Tidewave.&quot;</span><span class="p">,</span>
+<span class="p">)</span></code></pre></div>
+<p><code>model</code> and <code>tools</code> are the same objects from Articles 5 and 12, <code>get_model()</code> and the <code>@tool</code>-decorated <code>check_subscription_status</code>, unchanged. (<code>create_agent</code> will also take a model string directly, <code>create_agent("anthropic:claude-sonnet-5", ...)</code>, the same <code>init_chat_model</code> format <code>get_model()</code> wraps; this series keeps passing <code>get_model()</code> so the model choice stays in one place.) <code>create_agent</code> is the piece that turns "a model that can request a tool" into "something that actually runs the tool and keeps going until it has a real answer."</p>
+<div class="figure">
+  <svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg">
+    <text x="160" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#A8712E">Article 12: written by hand</text>
+    <text x="480" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1E8A72">Article 13: create_agent</text>
+
+    <rect x="20" y="38" width="280" height="150" rx="8" fill="#A8712E" fill-opacity="0.06" stroke="#A8712E" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="160" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">model_with_tools.invoke()</text>
+    <text x="160" y="82" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">for tool_call in ...:</text>
+    <text x="160" y="102" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">  tool.invoke(args)</text>
+    <text x="160" y="122" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">  messages.append(ToolMessage)</text>
+    <text x="160" y="142" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">model_with_tools.invoke(messages)</text>
+    <text x="160" y="168" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#A8712E" font-style="italic">you write and maintain every line</text>
+
+    <rect x="340" y="38" width="280" height="150" rx="8" fill="#1E8A72" fill-opacity="0.08" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="480" y="90" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1A1F2B">agent = create_agent(</text>
+    <text x="480" y="112" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1A1F2B">  model, tools=[...]</text>
+    <text x="480" y="134" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1A1F2B">)</text>
+    <text x="480" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#1E8A72" font-style="italic">the entire loop, run for you</text>
+  </svg>
+  <div class="figure-caption">Fig. 1 — Same sequence of events either way. create_agent doesn't do anything new; it just runs Article 12's loop so you don't maintain it by hand.</div>
+</div>
+<h2 id="calling-it-and-what-comes-back">Calling it, and what comes back</h2>
+<p>Agents take and return a slightly different shape than the chains from earlier articles, a dict with a <code>messages</code> key, rather than a bare message list or a single string:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">result</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span>
+    <span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What&#39;s my subscription status? My email is sam@example.com&quot;</span><span class="p">}]</span>
+<span class="p">})</span></code></pre></div>
+<p><code>result["messages"]</code> holds the full conversation, including every intermediate step the agent took to get there, the tool request, the tool's result, and the final reply, not just the last message. The answer itself is the last one, and it's worth reading with <code>.text</code> rather than <code>.content</code>, for the same reason as Article 5: with a real Claude model, the intermediate <code>AIMessage</code> that requested the tool carries thinking and text blocks alongside the request, so <code>.content</code> is a list, not a string.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<p><code>tools</code> is a list for a reason, too. Give the agent several and the model picks among them on each pass, which is the decision Article 12 ended on: it may request one tool, several at once (the agent runs every requested call before going back to the model), or none, answering directly when the question doesn't need any customer's data. The loop keeps going until the model replies without a tool request.</p>
+<h2 id="watching-the-loop-actually-run">Watching the loop actually run</h2>
+<p>Deciding to call the tool needs a live model, same as Article 12. But this article's stand-in is worth a beat of explanation before seeing it, since it's more involved than the simple <code>RunnableLambda</code> swaps from Articles 8, 11, and 12: <code>create_agent</code> calls <code>.bind_tools()</code> on whatever model it's given internally, so a stand-in has to actually implement that method, along with LangChain's real message-generation interface, not just return a message from a lambda. Here's the smallest version that does:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.language_models.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseChatModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.outputs</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatResult</span><span class="p">,</span> <span class="n">ChatGeneration</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.messages</span><span class="w"> </span><span class="kn">import</span> <span class="n">AIMessage</span><span class="p">,</span> <span class="n">ToolMessage</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FakeAgentModel</span><span class="p">(</span><span class="n">BaseChatModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stand-in so the full agent loop can run with no API key. First</span>
+<span class="sd">    call: request the tool. Second call, once it sees a ToolMessage</span>
+<span class="sd">    in the history: give a final answer using that result.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">run_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChatResult</span><span class="p">:</span>
+        <span class="n">tool_result</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">m</span><span class="o">.</span><span class="n">content</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">messages</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">ToolMessage</span><span class="p">)),</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tool_result</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">AIMessage</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Here&#39;s your status: </span><span class="si">{</span><span class="n">tool_result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">AIMessage</span><span class="p">(</span>
+                <span class="n">content</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                <span class="n">tool_calls</span><span class="o">=</span><span class="p">[{</span>
+                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;check_subscription_status&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;customer_email&quot;</span><span class="p">:</span> <span class="s2">&quot;sam@example.com&quot;</span><span class="p">},</span>
+                    <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;call_1&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;tool_call&quot;</span><span class="p">,</span>
+                <span class="p">}],</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">ChatResult</span><span class="p">(</span><span class="n">generations</span><span class="o">=</span><span class="p">[</span><span class="n">ChatGeneration</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">)])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bind_tools</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tools</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_llm_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;fake-agent-model&quot;</span>
+
+
+<span class="n">agent</span> <span class="o">=</span> <span class="n">create_agent</span><span class="p">(</span>
+    <span class="n">FakeAgentModel</span><span class="p">(),</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">check_subscription_status</span><span class="p">],</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant for Tidewave.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span>
+    <span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What&#39;s my subscription status? My email is sam@example.com&quot;</span><span class="p">}]</span>
+<span class="p">})</span>
+<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s2">&quot;-&gt;&quot;</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">content</span><span class="p">)</span></code></pre></div>
+<div class="walkthrough"><p class="wt-label">What each piece is doing</p><ul><li><strong><code>_generate</code> is the one method every chat model must implement.</strong> LangChain calls it with the full message history so far and expects a <code>ChatResult</code> wrapping a <code>ChatGeneration</code> wrapping the actual <code>AIMessage</code> back, that nested shape is real LangChain plumbing, not something this stand-in invented.</li><li><strong>The branching logic is the whole "brain" of this fake model.</strong> <code>next((m.content for m in messages if isinstance(m, ToolMessage)), None)</code> checks whether a tool result is already sitting in the history. The first time through, there isn't one, so it returns the tool-call request. The second time, the agent has already appended a <code>ToolMessage</code> with the real result, so this branch fires instead and produces a normal final answer using it.</li><li><strong><code>bind_tools</code> just returns <code>self</code>, ignoring the tools it's handed.</strong> A real provider integration would use this method to actually tell the provider's API which tools are available; this stand-in already knows what it's going to do regardless, so there's nothing to configure. It exists purely to stop <code>create_agent</code>'s internal call to <code>.bind_tools()</code> from failing.</li></ul></div>
+<p>Genuine output, and this is the entire point of the article:</p>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>HumanMessage -&gt; What's my subscription status? My email is sam@example.com
+AIMessage -&gt;
+ToolMessage -&gt; Team plan, active, next billing date 2026-09-15
+AIMessage -&gt; Here's your status: Team plan, active, next billing date 2026-09-15</code></pre></div>
+<div class="figure">
+  <svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="20" width="150" height="40" rx="6" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="95" y="44" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1A1F2B">HumanMessage</text>
+
+    <path d="M170 40 L206 40" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowAG)"/>
+
+    <rect x="210" y="20" width="150" height="40" rx="6" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="285" y="38" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#3D4FE0">AIMessage</text>
+    <text x="285" y="52" text-anchor="middle" font-family="Inter, sans-serif" font-size="8.5" fill="#565F70">(tool_calls: the request)</text>
+
+    <path d="M360 40 L396 40" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowAG)"/>
+
+    <rect x="400" y="20" width="150" height="40" rx="6" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="475" y="44" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#A8712E">ToolMessage</text>
+
+    <path d="M480 60 L480 96" stroke="#B9B6AB" stroke-width="1.5" fill="none"/>
+    <path d="M480 96 L285 96 L285 122" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowAG)"/>
+
+    <rect x="180" y="123" width="210" height="46" rx="6" fill="#1E8A72" fill-opacity="0.10" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="285" y="143" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#1E8A72">AIMessage</text>
+    <text x="285" y="157" text-anchor="middle" font-family="Inter, sans-serif" font-size="8.5" fill="#565F70">"Here's your status: ..."</text>
+
+    <text x="320" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#565F70" font-style="italic">all four messages end up in result["messages"] — the whole run, not just the answer</text>
+
+    <defs>
+      <marker id="arrowAG" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 2 — The real, verified message sequence from this article's run: request, tool result, then a final answer that actually uses it.</div>
+</div>
+<p>With a real Claude model, that second line wouldn't be empty: its <code>content</code> would hold the thinking and "let me check" text blocks from Article 12, and printing <code>m.text</code> instead of <code>m.content</code> gives just the text. The shape of the run is identical either way.</p>
+<p>Nobody wrote a loop. <code>check_subscription_status.invoke(...)</code> ran, the result got appended as a <code>ToolMessage</code>, and the model got called a second time, all of it happening inside <code>agent.invoke()</code>, the exact sequence Article 12 built by hand, now automated. One more real detail worth knowing: the <code>system_prompt</code> gets prepended as an actual <code>SystemMessage</code> on every internal call the agent makes, confirmed by inspecting what <code>FakeAgentModel._generate</code> actually receives, but it doesn't appear in <code>result["messages"]</code>, which only tracks the conversational turns.</p>
+<h2 id="closing-the-loop-from-article-8">Closing the loop from Article 8</h2>
+<p>Recall the honest flag from Article 8: <code>RunnableWithMessageHistory</code> carries a deprecation warning pointing at LangGraph's own persistence. This is that. Agents remember across turns with a <code>checkpointer</code> and a <code>thread_id</code>, not <code>RunnableWithMessageHistory</code> at all:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.checkpoint.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemorySaver</span>
+
+<span class="n">agent</span> <span class="o">=</span> <span class="n">create_agent</span><span class="p">(</span>
+    <span class="n">FakeAgentModel</span><span class="p">(),</span>  <span class="c1"># get_model() in production</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">check_subscription_status</span><span class="p">],</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant for Tidewave.&quot;</span><span class="p">,</span>
+    <span class="n">checkpointer</span><span class="o">=</span><span class="n">InMemorySaver</span><span class="p">(),</span>
+<span class="p">)</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="s2">&quot;customer-123&quot;</span><span class="p">}}</span>
+<span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span>
+    <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What&#39;s my subscription status? My email is sam@example.com&quot;</span><span class="p">}]},</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span>
+    <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Thanks! Which plan was that again?&quot;</span><span class="p">}]},</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">m</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s2">&quot;-&gt;&quot;</span><span class="p">,</span> <span class="n">m</span><span class="o">.</span><span class="n">content</span><span class="p">)</span></code></pre></div>
+<p>Genuine output from the second call:</p>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>HumanMessage -&gt; What's my subscription status? My email is sam@example.com
+AIMessage -&gt;
+ToolMessage -&gt; Team plan, active, next billing date 2026-09-15
+AIMessage -&gt; Here's your status: Team plan, active, next billing date 2026-09-15
+HumanMessage -&gt; Thanks! Which plan was that again?
+AIMessage -&gt; Here's your status: Team plan, active, next billing date 2026-09-15</code></pre></div>
+<p>The second call only sent one new message, yet the result holds six. The checkpointer loaded the first turn's four messages for <code>customer-123</code> before the model ran, so <code>FakeAgentModel</code> found the earlier <code>ToolMessage</code> already in the history and answered without calling the tool again. The canned reply is the stand-in's limit; the history it was given is the real mechanism. Invoke with a different <code>thread_id</code> and the agent starts from an empty history.</p>
+<p><code>thread_id</code> plays exactly the role <code>session_id</code> played back in Article 8, one growing history per id, looked up automatically on every call. <code>InMemorySaver</code> is the simplest checkpointer, in-memory only, gone when the process exits, the same trade-off Article 10's Chroma setup had before <code>persist_directory</code> entered the picture. For anything that has to survive a restart, LangGraph ships database-backed checkpointers as separate packages, <code>SqliteSaver</code> from <code>langgraph-checkpoint-sqlite</code> and <code>PostgresSaver</code> from <code>langgraph-checkpoint-postgres</code>, and swapping one in is a constructor change. This is the mechanism Article 8 pointed toward without using yet. Article 8's other problem, a history that grows forever, still applies per thread; the <code>create_agent</code> answer to it is middleware, covered next.</p>
+<h2 id="putting-a-ceiling-on-the-loop">Putting a ceiling on the loop</h2>
+<div class="note"><p class="note-label">Cost note</p><p>"Keeps going until the model replies without a tool request" has an uncomfortable corollary: a model that keeps requesting tools keeps the loop running. LangGraph does have a safety stop, the <code>recursion_limit</code>, but its default is now roughly 10,000 steps (older LangGraph versions used 25, which is the number most tutorials still quote), so in practice it won't save you from a model stuck calling the same tool over and over, each call billed. Set a real ceiling yourself:</p></div>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents.middleware</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelCallLimitMiddleware</span>
+
+<span class="n">agent</span> <span class="o">=</span> <span class="n">create_agent</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">check_subscription_status</span><span class="p">],</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant for Tidewave.&quot;</span><span class="p">,</span>
+    <span class="n">middleware</span><span class="o">=</span><span class="p">[</span><span class="n">ModelCallLimitMiddleware</span><span class="p">(</span><span class="n">run_limit</span><span class="o">=</span><span class="mi">5</span><span class="p">)],</span>
+<span class="p">)</span></code></pre></div>
+<p><code>run_limit=5</code> allows at most five model calls per <code>invoke()</code>. Tested with a stand-in that requests a tool on every call, the agent stopped after the fifth and ended with a final <code>AIMessage</code> reading <code>Model call limits exceeded: run limit (5/5)</code> instead of looping on. Pass <code>exit_behavior="error"</code> if you'd rather it raise. The blunter alternative is lowering <code>recursion_limit</code> per call, <code>agent.invoke(..., config={"recursion_limit": 10})</code>, which raises <code>GraphRecursionError</code> when hit.</p>
+<h2 id="middleware-and-where-create-agent-stops-being-the-right-layer">Middleware, and where <code>create_agent</code> stops being the right layer</h2>
+<p>That <code>middleware=</code> argument is <code>create_agent</code>'s main customization point, and LangChain ships a set of ready-made pieces for it. A few worth knowing by name: <code>SummarizationMiddleware</code> condenses older messages once a thread's history gets long, the agent-era answer to Article 8's <code>trim_messages</code>; <code>HumanInTheLoopMiddleware</code> pauses the run before chosen tools execute so a person can approve, edit, or reject the call (it needs a checkpointer, since the paused run has to be resumed later); <code>ToolRetryMiddleware</code> and <code>ModelRetryMiddleware</code> retry failed calls. Separately, a <code>response_format=</code> argument makes the agent's final answer a validated Pydantic object, the same idea as Article 6's <code>with_structured_output</code>, applied to the end of a whole agent run.</p>
+<p>Everything in this article covers the common shape well: a model, a handful of tools, a loop that runs until there's a real answer. <code>create_agent</code> plus middleware is an opinionated layer over LangGraph for that shape. Custom branching logic, multiple cooperating agents, or control flow that middleware can't express is LangGraph's graph-building API territory instead, nodes and edges you wire up yourself, a larger topic than this series has room for. Worth knowing it's there as the next layer down; not worth reaching for until <code>create_agent</code> specifically can't do what you need.</p>
+<h2 id="what-s-next">What's next</h2>
+<p class="closing">Tidewave's assistant can now retrieve, remember, and act, and everything runs through code you understand end to end. The one thing you still can't see is what actually happened inside a run, which tool got called, what the model was actually shown, why an answer came out the way it did. Next up: LangSmith, tracing, and actually watching all of this work, the last new concept this series covers before Article 15 pulls everything together into one finished build.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-12-tools-tool-calling.html">
+          <span class="pager-label">&larr; Previous · Article 12</span>
+          <span class="pager-title">Tools and tool calling</span>
+        </a>
+        <a class="pager-card next" href="article-14-langsmith-observability.html">
+          <span class="pager-label">Next · Article 14 &rarr;</span>
+          <span class="pager-title">Observability with LangSmith</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

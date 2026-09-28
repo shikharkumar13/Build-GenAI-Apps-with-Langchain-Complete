@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LCEL: the pipe-operator pattern used to compose everything</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+thead th code { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 07 / 15 · ~7 min read</span>
+    </div>
+    <h1>LCEL: the pipe-operator pattern used to compose everything</h1>
+    <p class="dek">Why Article 6's two-step prompt-then-model code collapses into one expression: the Runnable interface every LangChain piece shares, the pipe operator that composes them, and where that straight-line model runs out.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#the-one-idea-underneath-everything-runnable">The one idea: Runnable</a><a class="toc-main" href="#rewriting-article-6-s-classifier-as-one-chain">Article 6's classifier as a chain</a><a class="toc-main" href="#runnableparallel-running-steps-side-by-side">RunnableParallel</a><a class="toc-sub" href="#the-tidewave-version">The Tidewave version</a><a class="toc-main" href="#batch-the-method-every-chain-already-has">.batch()</a><a class="toc-main" href="#where-lcel-stops-being-the-right-tool">Where LCEL stops</a><a class="toc-main" href="#what-s-next">What's next</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:46.7%"></div></div>
+        <div class="mini-progress-text">Article 7 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>Look back at how Article 6 ended: format a prompt with <code>template.invoke({...})</code>, then separately call <code>.invoke()</code> again on a model with the result. Two steps, two variables, one obvious question: why isn't this just one expression? LCEL, LangChain Expression Language, is the answer, and it's less a separate feature to learn than a consequence of one design decision made consistently across the whole framework.</p>
+<h2 id="the-one-idea-underneath-everything-runnable">The one idea underneath everything: <code>Runnable</code></h2>
+<p>Every piece of LangChain you've used so far, a prompt template, a chat model, and every piece you're about to use, an output parser, a retriever, later in this series, implements the same shared interface: <code>Runnable</code>. Anything that's a <code>Runnable</code> gets <code>.invoke()</code>, <code>.batch()</code>, and <code>.stream()</code> for free (plus async twins, <code>.ainvoke()</code> and friends), with the same meaning every time: take one input and produce one output, take a list of inputs and produce a list of outputs, or produce an output as a stream of pieces. You've already been using this without the name attached to it: <code>template.invoke({...})</code> and <code>model.invoke(messages)</code> are the exact same method, defined once, implemented by two different classes.</p>
+<p>Python's <code>|</code> operator, normally bitwise OR, is overloaded on <code>Runnable</code> to mean something else entirely: compose. <code>a | b</code> builds a <code>RunnableSequence</code> where <code>a</code>'s output becomes <code>b</code>'s input. That's the entire mechanism. Nothing about prompts or models is special-cased into it.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.prompts</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatPromptTemplate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.output_parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">StrOutputParser</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">models</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_model</span>
+
+<span class="n">template</span> <span class="o">=</span> <span class="n">ChatPromptTemplate</span><span class="o">.</span><span class="n">from_messages</span><span class="p">([</span>
+    <span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;You are a concise, helpful assistant for </span><span class="si">{product}</span><span class="s2">.&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;human&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{question}</span><span class="s2">&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">get_model</span><span class="p">()</span>
+
+<span class="n">chain</span> <span class="o">=</span> <span class="n">template</span> <span class="o">|</span> <span class="n">model</span> <span class="o">|</span> <span class="n">StrOutputParser</span><span class="p">()</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">chain</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;product&quot;</span><span class="p">:</span> <span class="s2">&quot;Tidewave&quot;</span><span class="p">,</span> <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;What plans do you offer?&quot;</span><span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="p">)</span></code></pre></div>
+<p><code>get_model()</code> is Article 5's project helper, the same one Article 6 used, reused here again rather than constructing a provider class directly.</p>
+<div class="walkthrough"><p class="wt-label">Three Runnables, two pipes</p><ul><li><code>template | model</code> builds a <code>RunnableSequence</code> where the template's output, a <code>ChatPromptValue</code>, becomes the model's input. You already know this works, Article 6 showed <code>model.invoke()</code> accepting a <code>ChatPromptValue</code> directly; the pipe operator is just automating that same handoff instead of you doing it by hand across two lines.</li><li><code>| StrOutputParser()</code> adds a third step: the model's output, an <code>AIMessage</code>, becomes the parser's input, and <code>StrOutputParser</code> does exactly one thing, extract the message's text and return it as a plain string. Note <em>text</em>, not <code>.content</code>: with Claude thinking by default, <code>.content</code> is a list of blocks (Article 5), and <code>StrOutputParser</code> returns only the answer text, the same thing <code>.text</code> gives you, reasoning left out. It's a <code>Runnable</code> too, same as everything else here.</li><li><code>chain.invoke({...})</code> runs the whole sequence in one call: the dict goes into the first step, the template, and from there each step's output flows into the next. <code>chain</code> itself is a <code>Runnable</code>, meaning it can be composed into something larger the exact same way, chains built out of chains, all the way up.</li></ul></div>
+<div class="figure">
+  <svg viewBox="0 0 640 160" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="50" width="160" height="60" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="90" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#1A1F2B">template</text>
+    <text x="90" y="94" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">ChatPromptValue</text>
+
+    <path d="M170 80 L216 80" stroke="#3D4FE0" stroke-width="2" marker-end="url(#arrowL1)"/>
+    <text x="193" y="70" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="16" fill="#3D4FE0">|</text>
+
+    <rect x="220" y="50" width="160" height="60" rx="8" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="300" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#3D4FE0">model</text>
+    <text x="300" y="94" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">AIMessage</text>
+
+    <path d="M380 80 L426 80" stroke="#3D4FE0" stroke-width="2" marker-end="url(#arrowL1)"/>
+    <text x="403" y="70" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="16" fill="#3D4FE0">|</text>
+
+    <rect x="430" y="50" width="200" height="60" rx="8" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="530" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#A8712E">StrOutputParser</text>
+    <text x="530" y="94" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">str</text>
+
+    <text x="320" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70" font-style="italic">each step's output type is the next step's input type</text>
+
+    <defs>
+      <marker id="arrowL1" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#3D4FE0"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 1 — RunnableSequence: a straight line, each pipe handing its left side's output to its right side's input.</div>
+</div>
+<h2 id="rewriting-article-6-s-classifier-as-one-chain">Rewriting Article 6's classifier as one chain</h2>
+<p>The structured-output classifier from last article composes exactly the same way, since <code>with_structured_output</code> also returns a <code>Runnable</code>:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TicketClassification</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Structured classification of a Tidewave support message.&quot;&quot;&quot;</span>
+    <span class="n">category</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;billing&quot;</span><span class="p">,</span> <span class="s2">&quot;technical&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_request&quot;</span><span class="p">,</span> <span class="s2">&quot;other&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The best-fit category for this support message&quot;</span>
+    <span class="p">)</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;low&quot;</span><span class="p">,</span> <span class="s2">&quot;medium&quot;</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;How urgently this message needs a response&quot;</span>
+    <span class="p">)</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;One-sentence summary of the issue&quot;</span><span class="p">)</span>
+
+
+<span class="n">classify_template</span> <span class="o">=</span> <span class="n">ChatPromptTemplate</span><span class="o">.</span><span class="n">from_messages</span><span class="p">([</span>
+    <span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;You classify incoming support messages for </span><span class="si">{product}</span><span class="s2">.&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;human&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{message}</span><span class="s2">&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+<span class="n">classifier</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">with_structured_output</span><span class="p">(</span>
+    <span class="n">TicketClassification</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;json_schema&quot;</span>
+<span class="p">)</span>
+
+<span class="n">classify_chain</span> <span class="o">=</span> <span class="n">classify_template</span> <span class="o">|</span> <span class="n">classifier</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">classify_chain</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span>
+    <span class="s2">&quot;product&quot;</span><span class="p">:</span> <span class="s2">&quot;Tidewave&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;My card was charged twice this month and I need a refund ASAP.&quot;</span><span class="p">,</span>
+<span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">category</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">priority</span><span class="p">)</span></code></pre></div>
+<p>That's the entirety of Article 6's "Putting both together" section, minus the intermediate <code>prompt_value</code> variable. Same two pieces, same result, one expression instead of two statements.</p>
+<h2 id="runnableparallel-running-steps-side-by-side"><code>RunnableParallel</code>: running steps side by side</h2>
+<p>Sometimes you want more than one thing done with the same input, not one thing after another. <code>RunnableParallel</code> runs several <code>Runnable</code>s against the same input and collects their outputs into a dict, keyed by whatever names you give each branch. This one's worth seeing actually run, with real output, rather than taking on faith, since (unlike the model calls above) it needs no API key at all:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.runnables</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunnableParallel</span><span class="p">,</span> <span class="n">RunnableLambda</span><span class="p">,</span> <span class="n">RunnablePassthrough</span>
+
+<span class="n">uppercase</span> <span class="o">=</span> <span class="n">RunnableLambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+<span class="n">word_count</span> <span class="o">=</span> <span class="n">RunnableLambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+
+<span class="n">parallel</span> <span class="o">=</span> <span class="n">RunnableParallel</span><span class="p">(</span>
+    <span class="n">original</span><span class="o">=</span><span class="n">RunnablePassthrough</span><span class="p">(),</span>
+    <span class="n">upper</span><span class="o">=</span><span class="n">uppercase</span><span class="p">,</span>
+    <span class="n">word_count</span><span class="o">=</span><span class="n">word_count</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">parallel</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;hello world from tidewave&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></code></pre></div>
+<p>This actually executes, and here's the genuine output:</p>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>{'original': 'hello world from tidewave', 'upper': 'HELLO WORLD FROM TIDEWAVE', 'word_count': 4}</code></pre></div>
+<div class="figure">
+  <svg viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg">
+    <rect x="255" y="10" width="130" height="46" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="320" y="38" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">"hello world..."</text>
+
+    <path d="M320 56 L120 96" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowL2)"/>
+    <path d="M320 56 L320 96" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowL2)"/>
+    <path d="M320 56 L520 96" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowL2)"/>
+
+    <rect x="40" y="97" width="160" height="50" rx="8" fill="#1E8A72" fill-opacity="0.10" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="120" y="119" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#1E8A72">original</text>
+    <text x="120" y="136" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">RunnablePassthrough()</text>
+
+    <rect x="240" y="97" width="160" height="50" rx="8" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="320" y="119" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#3D4FE0">upper</text>
+    <text x="320" y="136" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">RunnableLambda(...)</text>
+
+    <rect x="440" y="97" width="160" height="50" rx="8" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="520" y="119" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#A8712E">word_count</text>
+    <text x="520" y="136" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">RunnableLambda(...)</text>
+
+    <path d="M120 147 L280 180" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowL2)"/>
+    <path d="M320 147 L320 180" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowL2)"/>
+    <path d="M520 147 L360 180" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowL2)"/>
+
+    <rect x="150" y="181" width="340" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="320" y="203" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#1A1F2B">&#123;'original': ..., 'upper': ..., 'word_count': 4&#125;</text>
+    <text x="320" y="220" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70">one dict, keyed by branch name</text>
+
+    <defs>
+      <marker id="arrowL2" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 2 — RunnableParallel: the same input fans out to every branch independently, then fans back in as one combined dict.</div>
+</div>
+<p>Three branches, one input, one dict of results. Two new pieces showed up in that example, worth naming directly:</p>
+<div class="walkthrough"><p class="wt-label">Two new pieces</p><ul><li><strong><code>RunnableLambda</code></strong> wraps an ordinary Python function (even a one-line <code>lambda</code>) so it satisfies the <code>Runnable</code> interface and can sit inside a chain like any other piece. Custom logic, string manipulation, a calculation, a lookup, becomes composable the same way a prompt or a model is.</li><li><strong><code>RunnablePassthrough</code></strong> is the identity function as a <code>Runnable</code>: whatever comes in goes out unchanged. On its own that sounds pointless; it earns its place inside something like <code>RunnableParallel</code>, where you want one branch to carry the original input forward untouched while other branches transform it.</li></ul></div>
+<div class="callout"><strong>Try it yourself:</strong> that example needs no API key at all, so it's worth actually running and then adding a fourth branch, a <code>RunnableLambda</code> that reverses the string, or counts vowels, or anything else. Every branch runs against the same original input independently; watch the returned dict grow a key for each one you add.</div>
+<p>There's a shorthand worth knowing too: a plain Python dict, piped into or out of a <code>Runnable</code>, gets automatically coerced into a <code>RunnableParallel</code>. <code>{"upper": uppercase, "original": RunnablePassthrough()} | next_step</code> works without writing <code>RunnableParallel(...)</code> explicitly; the dict becomes the first step of the resulting sequence. You'll see this shorthand constantly in LangChain code you read elsewhere; it's exactly the same mechanism, just implicit.</p>
+<h3 id="the-tidewave-version">The Tidewave version</h3>
+<p>Applied to the actual project: enrich the classifier chain so the output carries both the structured classification <em>and</em> the original message, useful the moment downstream code, a future article's tool call, say, needs to reference what the customer actually wrote, not just the extracted category:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">enriched_chain</span> <span class="o">=</span> <span class="n">RunnableParallel</span><span class="p">(</span>
+    <span class="n">original_input</span><span class="o">=</span><span class="n">RunnablePassthrough</span><span class="p">(),</span>
+    <span class="n">classification</span><span class="o">=</span><span class="n">classify_template</span> <span class="o">|</span> <span class="n">classifier</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">enriched_chain</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span>
+    <span class="s2">&quot;product&quot;</span><span class="p">:</span> <span class="s2">&quot;Tidewave&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;My card was charged twice this month and I need a refund ASAP.&quot;</span><span class="p">,</span>
+<span class="p">})</span>
+<span class="c1"># result[&quot;original_input&quot;] -&gt; the original dict</span>
+<span class="c1"># result[&quot;classification&quot;] -&gt; the TicketClassification object</span></code></pre></div>
+<p><code>RunnablePassthrough()</code> carries the raw input dict forward unchanged in one branch, while <code>classify_template | classifier</code>, itself a full chain, runs in the other. Both are genuinely <code>Runnable</code>, so nesting one chain inside <code>RunnableParallel</code> as a single branch is nothing special, just composition, the same idea applied one level deeper.</p>
+<h2 id="batch-the-method-every-chain-already-has"><code>.batch()</code>: the method every chain already has</h2>
+<p>Because all of this rests on the same <code>Runnable</code> interface, <code>.batch()</code> isn't something you add, it's already there, on any chain:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">double</span> <span class="o">=</span> <span class="n">RunnableLambda</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">double</span><span class="o">.</span><span class="n">batch</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span></code></pre></div>
+<p>Real output: <code>[2, 4, 6]</code>. Swap <code>double</code> for a full <code>template | model</code> chain and <code>.batch()</code> runs multiple inputs for you, instead of writing your own loop around repeated <code>.invoke()</code> calls. It isn't a sequential loop in disguise, either: by default <code>.batch()</code> runs the inputs concurrently on a thread pool, so four slow model calls take roughly as long as one. That's also the thing to watch with a real model: every input is a separate API call hitting your rate limit at once, so for large batches cap it with <code>chain.batch(inputs, config={"max_concurrency": 5})</code>. The same goes for <code>.stream()</code> from Article 5, it's not a special model-only trick, it works on an entire composed chain exactly the same way it worked on a bare model, since a chain is a <code>Runnable</code> too.</p>
+<h2 id="where-lcel-stops-being-the-right-tool">Where LCEL stops being the right tool</h2>
+<p>Everything in this article composes in a straight line: input flows through a fixed sequence of steps to an output. That covers a genuine majority of this series, prompts, models, parsers, and (starting in a few articles) retrieval all chain together this way. It starts to strain the moment your logic needs real control flow. Simple routing is possible, <code>RunnableBranch</code>, or a <code>RunnableLambda</code> that returns a different chain depending on its input, but looping back to an earlier step, carrying state across iterations, or pausing partway through for something like human approval is control flow LCEL was never designed to express cleanly. That's what LangGraph exists for, and it's what LangChain's own <code>create_agent</code>, covered in Article 13, is built on underneath. You won't need it until this series gets there; worth knowing now only so you're not tempted to force a branching agent loop through pipe operators later, when a purpose-built tool is the better fit.</p>
+<h2 id="what-s-next">What's next</h2>
+<p class="closing">Next up: conversation memory, giving Tidewave's assistant an actual multi-turn history instead of answering each message in isolation. It'll lean on two things you already have: <code>MessagesPlaceholder</code> from Article 6, and the chain composition from this one.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-06-prompt-templates-structured-output.html">
+          <span class="pager-label">&larr; Previous · Article 6</span>
+          <span class="pager-title">Prompt templates and structured output</span>
+        </a>
+        <a class="pager-card next" href="article-08-conversation-memory.html">
+          <span class="pager-label">Next · Article 8 &rarr;</span>
+          <span class="pager-title">Conversation memory</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

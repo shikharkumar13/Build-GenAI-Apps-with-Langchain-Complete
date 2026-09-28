@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The multi-provider landscape: Gemini, other providers, and a unified interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 03 / 15 · ~14 min read</span>
+    </div>
+    <h1>The multi-provider landscape: Gemini, other providers, and a unified interface</h1>
+    <p class="dek">A third provider, a third set of conventions, and the point where hand-written glue code stops scaling: Google's Gemini, a quick tour of the wider field, and LiteLLM's one interface for all of them.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#what-s-distinctive-about-gemini">What's distinctive about Gemini</a><a class="toc-main" href="#a-quick-warning-about-which-package-to-install">Which package to install</a><a class="toc-main" href="#your-first-gemini-call">Your first Gemini call</a><a class="toc-main" href="#system-instructions-a-third-convention">System instructions</a><a class="toc-main" href="#streaming-with-gemini">Streaming</a><a class="toc-main" href="#multi-turn-conversations-with-gemini">Multi-turn conversations</a><a class="toc-main" href="#openai-anthropic-and-gemini-side-by-side">Side by side</a><a class="toc-main" href="#other-providers-briefly">Other providers</a><a class="toc-main" href="#litellm-one-interface-many-providers">LiteLLM</a><a class="toc-main" href="#a-simple-model-router">A simple model router</a><a class="toc-main" href="#what-litellm-doesn-t-solve">What LiteLLM doesn't solve</a><a class="toc-main" href="#what-s-next">What's next</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:20.0%"></div></div>
+        <div class="mini-progress-text">Article 3 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>Two providers down. By the end of Article 2 you'd already hit four real differences between OpenAI and Anthropic: where the system instruction lives, whether an output cap is required, what the method is called, and how the reply is unwrapped from the response, with Claude's thinking block sometimes sitting in front of it. Two providers, four inconsistencies. This article adds a third provider, Google's Gemini, watches the inconsistency count grow again, and then shows you the tool many working AI engineers reach for once that pattern gets old: LiteLLM, a single interface that sits in front of upwards of a hundred providers.</p>
+<h2 id="what-s-distinctive-about-gemini">What's distinctive about Gemini</h2>
+<p>Google's Gemini models stand out for two things worth knowing before you touch any code. They're natively multimodal, taking text, images, audio, and video as input to the same model, and they can ground answers in live Google Search results when you want that. Gemini also helped make very large context windows normal: Google shipped million-token windows back in 2024, including on its cheap Flash tier, when that was still a premium feature elsewhere. Today the mainstream models from all three providers in this series accept around a million tokens, so long context on its own is no longer a Gemini-specific reason to pick it.</p>
+<p>None of that changes the fundamentals from Article 2. It's still a chat-style API, still role-based messages under the hood. What's different is the SDK and a few conventions, which is exactly what the rest of this article walks through.</p>
+<h2 id="a-quick-warning-about-which-package-to-install">A quick warning about which package to install</h2>
+<p>If you search for "Gemini Python SDK" you will find plenty of tutorials, including older versions of Google's own docs, pointing at a package called <code>google-generativeai</code>. That package is legacy: Google replaced it with a new, unified SDK called <code>google-genai</code>, and support for the old one ended entirely on November 30, 2025. This is worth calling out explicitly because it's a very easy trap: the old package still installs from PyPI, so nothing stops you from quietly building on an unsupported foundation.</p>
+<div class="code"><div class="code-head"><span class="code-lang">terminal</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pip<span class="w"> </span>install<span class="w"> </span>google-genai</code></pre></div>
+<p>Use <code>google-genai</code>. If you see <code>import google.generativeai as genai</code> in something you're reading, treat it as a signal the material predates the migration.</p>
+<h2 id="your-first-gemini-call">Your first Gemini call</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">google</span><span class="w"> </span><span class="kn">import</span> <span class="n">genai</span>
+
+<span class="n">load_dotenv</span><span class="p">()</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">genai</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;GOOGLE_API_KEY&quot;</span><span class="p">))</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">generate_content</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-3.8-flash&quot;</span><span class="p">,</span>
+    <span class="n">contents</span><span class="o">=</span><span class="s2">&quot;Explain what an API is in two sentences.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<div class="walkthrough"><p class="wt-label">What's different from OpenAI and Anthropic</p><ul><li><code>from google import genai</code> is the import; the installed package is <code>google-genai</code>, but the importable module is <code>google.genai</code>, accessed here via the shorter <code>from google import genai</code> form.</li><li><code>genai.Client(api_key=...)</code> builds the client, same pattern as before. Google's current docs name the environment variable <code>GEMINI_API_KEY</code>, but the SDK accepts <code>GOOGLE_API_KEY</code> too, and uses <code>GOOGLE_API_KEY</code> if both are set. This series standardizes on <code>GOOGLE_API_KEY</code>, because LiteLLM (later in this article) and LangChain's Gemini integration (Article 5) both check that name first as well, so one line in your <code>.env</code> covers all three.</li><li><code>client.models.generate_content(...)</code> is the call. Notice there's no <code>.chat</code> or <code>.messages</code> in the path: Gemini's SDK organizes this differently, everything hangs off <code>client.models</code>.</li><li><code>contents</code> replaces <code>messages</code>. For a single-turn question like this one, you can just pass a plain string, no role-tagged dict required. That's a genuine simplification for the simple case, though multi-turn conversations still need a structured list, which the conversation-loop version below shows.</li><li><code>response.text</code> is a convenience property that hands you the reply as a plain string directly, no <code>.choices[0]</code> indexing and no filtering through content blocks the way Article 2 had to for Claude. Gemini's current models also think before answering by default, but <code>.text</code> contains only the final answer, never the internal reasoning. Under the hood there's still a more detailed structure (candidates, parts, safety ratings), but for the common case, <code>.text</code> is genuinely the whole answer.</li><li>One thing you'll probably see the first time you run this: a one-off warning in your terminal saying "Direct use of automatic function calling (AFC) in Models.generate_content is not recommended." It's harmless. The SDK logs it once per run whether or not you're using tools, and automatic function calling is a tools feature this article doesn't touch (tools get their own article, Article 12). Your reply still prints right after it.</li></ul></div>
+<p>On model choice: <code>gemini-3.8-flash</code> is Google's current stable Flash model as of September 2026, described in Google's docs as its most intelligent Flash model yet. Flash-Lite variants such as <code>gemini-3.5-flash-lite</code> sit below it as the cheapest, fastest tier, and a Pro tier, currently in preview as <code>gemini-3.1-pro-preview</code>, is aimed at the most complex problems. Same caveat as Article 2: the names move fast, the tier structure doesn't.</p>
+<p>One more parallel with Article 2. Just as OpenAI now recommends its newer Responses API over Chat Completions, Google now recommends a newer Interactions API for new projects (<code>client.interactions.create(model=..., input=...)</code>, with the reply at <code>interaction.output_text</code>), which can also keep conversation state on Google's side instead of making you resend it. Google's docs now label the <code>generate_content</code> API used here as legacy, while stating that it remains fully supported. This article sticks with <code>generate_content</code> for the same reason Article 2 stuck with Chat Completions: its stateless, send-the-whole-history shape is the one every provider shares, and it's the shape LiteLLM translates into later in this article.</p>
+<p>Your <code>.env</code> file from Article 2 picks up a third line:</p>
+<div class="code"><div class="code-head"><span class="code-lang">.env</span><button class="copy-btn" type="button">Copy</button></div><pre><code># .env
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...</code></pre></div>
+<h2 id="system-instructions-a-third-convention">System instructions: a third convention</h2>
+<p>Recall the pattern from Article 2: OpenAI puts the system instruction inside the <code>messages</code> list as a <code>role: "system"</code> entry; Anthropic pulls it out into its own top-level <code>system</code> parameter. Gemini does neither. It goes inside a configuration object:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">google.genai</span><span class="w"> </span><span class="kn">import</span> <span class="n">types</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">generate_content</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-3.8-flash&quot;</span><span class="p">,</span>
+    <span class="n">contents</span><span class="o">=</span><span class="s2">&quot;Explain what an API is in two sentences.&quot;</span><span class="p">,</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">types</span><span class="o">.</span><span class="n">GenerateContentConfig</span><span class="p">(</span>
+        <span class="n">system_instruction</span><span class="o">=</span><span class="s2">&quot;You are a concise, helpful assistant.&quot;</span><span class="p">,</span>
+        <span class="n">max_output_tokens</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<p><code>types.GenerateContentConfig(...)</code> bundles system instructions together with generation parameters like <code>max_output_tokens</code> (previewed here; the next article covers the full set). Notice what isn't in it: <code>temperature</code>. Google strongly recommends keeping it at its default of 1.0 for all Gemini 3 models, warning that lowering it can cause looping or degraded performance. It's the same trend Article 2 flagged, newer reasoning models locking that knob down, and Article 4 comes back to it. The pattern to notice: three providers, three different places to put the exact same concept. OpenAI: a message. Anthropic: a top-level argument. Gemini: a field inside a config object. None of these is wrong, they're just independent design decisions made by three different teams, and memorizing all three is precisely the kind of friction that motivates the rest of this article.</p>
+<p>One more dimension from Article 2's comparison worth closing out while it's on screen: <code>max_output_tokens</code> here is optional, same as OpenAI's output cap, unlike Anthropic's <code>max_tokens</code>, which Article 2 called out as genuinely required. Leave it out and Gemini generates until it decides it's done or hits the model's own hard limit.</p>
+<h2 id="streaming-with-gemini">Streaming with Gemini</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">stream</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">generate_content_stream</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-3.8-flash&quot;</span><span class="p">,</span>
+    <span class="n">contents</span><span class="o">=</span><span class="s2">&quot;Write a short poem about the ocean.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code></pre></div>
+<p>A fourth convention, though a pleasant one this time: <code>generate_content_stream</code> (a distinct method, rather than a <code>stream=True</code> flag on the same call) returns an iterator of the same response objects you already know, so each <code>chunk</code> has that same convenient <code>.text</code> property. No <code>.delta</code> unwrapping needed here, unlike OpenAI's streaming shape from Article 2.</p>
+<h2 id="multi-turn-conversations-with-gemini">Multi-turn conversations with Gemini</h2>
+<p>The single-string shortcut for <code>contents</code> only works for one-off questions. A real conversation needs the same thing Article 2 built for OpenAI and Anthropic: a growing history, resent on every call. Gemini's version of that history has two real differences worth knowing before you write it from memory out of habit:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">google.genai</span><span class="w"> </span><span class="kn">import</span> <span class="n">types</span>
+
+<span class="n">contents</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+    <span class="n">user_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;You: &quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">user_input</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;quit&quot;</span><span class="p">,</span> <span class="s2">&quot;exit&quot;</span><span class="p">):</span>
+        <span class="k">break</span>
+
+    <span class="n">contents</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;parts&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">user_input</span><span class="p">}]})</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">generate_content</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-3.8-flash&quot;</span><span class="p">,</span>
+        <span class="n">contents</span><span class="o">=</span><span class="n">contents</span><span class="p">,</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">types</span><span class="o">.</span><span class="n">GenerateContentConfig</span><span class="p">(</span>
+            <span class="n">system_instruction</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">reply</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Assistant:&quot;</span><span class="p">,</span> <span class="n">reply</span><span class="p">)</span>
+
+    <span class="n">contents</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;model&quot;</span><span class="p">,</span> <span class="s2">&quot;parts&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">reply</span><span class="p">}]})</span></code></pre></div>
+<div class="walkthrough"><p class="wt-label">Same loop shape, two dict-format differences</p><ul><li><strong>The role is <code>"model"</code>, not <code>"assistant"</code>.</strong> OpenAI and Anthropic both call the model's own turns <code>assistant</code>; Gemini calls them <code>model</code>. Paste an <code>"assistant"</code> role into a Gemini <code>contents</code> list out of habit and it'll be rejected.</li><li><strong>Each turn's text sits inside a <code>"parts"</code> list, not a plain <code>"content"</code> string.</strong> <code>{"role": "user", "parts": [{"text": user_input}]}</code> instead of <code>{"role": "user", "content": user_input}</code>. This is because a single Gemini turn can genuinely contain multiple parts (text plus an image, for instance), so even a plain text turn keeps that list structure. For everything in this article, a single-item <code>parts</code> list with one <code>{"text": ...}</code> dict is all you need.</li></ul></div>
+<p>As with Claude in Article 2, only the reply's text goes back into the history. Gemini 3 models can attach a "thought signature" to a reply, an encrypted marker of their reasoning, and Google's docs say that for plain text conversations it isn't strictly validated, while recommending you send it back when one is returned, for best reasoning quality. A plain-text history works for this article. If you'd rather not manage that detail by hand, the SDK's built-in chat helper, <code>client.chats.create(model=...)</code>, keeps each reply's full content, signature included, in the history for you.</p>
+<h2 id="openai-anthropic-and-gemini-side-by-side">OpenAI, Anthropic, and Gemini, side by side</h2>
+<p>Three providers in, the full comparison is worth seeing in one place rather than pieced together across two articles:</p>
+<div class="table-wrap wide"><table><thead><tr><th></th><th>OpenAI</th><th>Anthropic</th><th>Gemini</th></tr></thead><tbody><tr><td class="row-label">Client method</td><td><code>client.chat.completions.create()</code></td><td><code>client.messages.create()</code></td><td><code>client.models.generate_content()</code></td></tr><tr><td class="row-label">System instructions</td><td>Inside <code>messages</code>, <code>role: "system"</code></td><td>Separate top-level <code>system</code> param</td><td>Inside <code>config=GenerateContentConfig(system_instruction=...)</code></td></tr><tr><td class="row-label">Turn roles</td><td><code>system</code> / <code>user</code> / <code>assistant</code></td><td><code>user</code> / <code>assistant</code> (system separate)</td><td><code>user</code> / <code>model</code></td></tr><tr><td class="row-label">Message shape</td><td><code>{"role": ..., "content": "..."}</code></td><td><code>{"role": ..., "content": "..."}</code></td><td><code>{"role": ..., "parts": [{"text": "..."}]}</code></td></tr><tr><td class="row-label">Output cap</td><td>Optional</td><td>Required (<code>max_tokens</code>)</td><td>Optional (<code>max_output_tokens</code>)</td></tr><tr><td class="row-label">Reply location</td><td><code>response.choices[0].message.content</code></td><td>The <code>text</code> blocks in <code>response.content</code></td><td><code>response.text</code></td></tr><tr><td class="row-label">Streaming</td><td><code>stream=True</code>, read <code>.delta.content</code></td><td><code>.stream()</code> context manager, read <code>.text_stream</code></td><td><code>generate_content_stream(...)</code>, read <code>chunk.text</code></td></tr><tr><td class="row-label">Built-in reasoning</td><td>Tuned with <code>reasoning_effort</code></td><td>Adaptive thinking, on by default</td><td>Thinking on by default, tuned in <code>thinking_config</code></td></tr></tbody></table></div>
+<p>Every row in that table is a real, working piece of code from this article and the last one, not a simplification. It's also the table that should make the appeal of the next section obvious without further argument.</p>
+<h2 id="other-providers-briefly">Other providers, briefly</h2>
+<p>OpenAI, Anthropic, and Google cover most real-world usage, but the wider ecosystem is large. A couple worth knowing exist, without a full code walkthrough for either:</p>
+<ul><li><strong>Cohere</strong> focuses heavily on embeddings and multilingual support, and shows up often in retrieval-heavy applications for that reason specifically.</li><li>Plenty of others (Mistral, xAI's Grok, and various API front-ends for open-source models) round out the space, each with its own SDK and its own small conventions.</li></ul>
+<p>You don't need to memorize any of these. The point of this section is narrower: once you've felt the friction of two providers, then three, the pattern is obvious enough that the actual number of providers stops mattering. Which brings us to the fix.</p>
+<h2 id="litellm-one-interface-many-providers">LiteLLM: one interface, many providers</h2>
+<div class="code"><div class="code-head"><span class="code-lang">terminal</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;litellm&gt;=1.83.0&quot;</span></code></pre></div>
+<div class="note"><p class="note-label">Security note</p><p>A security note before anything else, because it's a real lesson rather than a footnote: on March 24, 2026, two LiteLLM releases published to PyPI, 1.82.7 and 1.82.8, were compromised with credential-stealing code that harvested environment variables, which is exactly where your API keys live. It was a supply-chain attack on the package, not a flaw in how LiteLLM works, and LiteLLM's maintainers have confirmed 1.82.6 and earlier, and 1.83.0 onward, as clean. That's what the <code>&gt;=1.83.0</code> in the install line is for: it guarantees you can't land on either bad release. And if you ever did install one of those two versions, rotate every API key that was in that environment.</p></div>
+<p>LiteLLM is a library that wraps all of the above (and dozens more) behind a single, consistent, OpenAI-shaped interface. Every call looks like an OpenAI Chat Completions call, regardless of which provider is actually answering:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">litellm</span>
+
+<span class="n">load_dotenv</span><span class="p">()</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-5.5&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Explain what an API is in two sentences.&quot;</span><span class="p">}],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-5&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Explain what an API is in two sentences.&quot;</span><span class="p">}],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini/gemini-3.8-flash&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Explain what an API is in two sentences.&quot;</span><span class="p">}],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span></code></pre></div>
+<p>Read that carefully: all three calls use the exact same shape, <code>litellm.completion(model=..., messages=...)</code>, the exact same OpenAI-style <code>messages</code> list, and the exact same response path, <code>response.choices[0].message.content</code>, regardless of which provider is behind it. LiteLLM standardizes every provider's response back into OpenAI's shape, so the differences from earlier in this article (system-as-message vs. top-level vs. config field, <code>.choices[0].message.content</code> vs. filtering Claude's text blocks vs. <code>.text</code>) all disappear from your code.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+    <rect x="170" y="20" width="300" height="56" rx="8" fill="#3D4FE0" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="320" y="44" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" fill="#ffffff">litellm.completion(</text>
+    <text x="320" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" fill="#ffffff">model=..., messages=...)</text>
+
+    <path d="M320 76 L320 96" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowA)"/>
+
+    <rect x="50" y="97" width="540" height="46" rx="8" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="320" y="125" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#A8712E">LiteLLM: one interface, provider-specific translation underneath</text>
+
+    <path d="M120 143 L120 163" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowA)"/>
+    <path d="M320 143 L320 163" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowA)"/>
+    <path d="M520 143 L520 163" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowA)"/>
+
+    <rect x="20" y="164" width="200" height="86" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="120" y="188" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">OpenAI</text>
+    <text x="120" y="208" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">chat.completions</text>
+    <text x="120" y="222" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">.create()</text>
+    <text x="120" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">system: in messages</text>
+
+    <rect x="220" y="164" width="200" height="86" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="320" y="188" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">Anthropic</text>
+    <text x="320" y="208" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">messages.create()</text>
+    <text x="320" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">system: top-level param</text>
+
+    <rect x="420" y="164" width="200" height="86" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="520" y="188" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">Gemini</text>
+    <text x="520" y="208" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">models.generate_content()</text>
+    <text x="520" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">system: inside config</text>
+
+    <text x="320" y="278" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70" font-style="italic">your code only ever sees the top box, regardless of which provider answers</text>
+
+    <defs>
+      <marker id="arrowA" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 1 — LiteLLM sits between your code and every provider, translating one consistent call shape into each provider's own convention.</div>
+</div>
+<div class="walkthrough"><p class="wt-label">Three things make that work</p><ul><li><strong>Authentication is still per-provider.</strong> LiteLLM doesn't remove the need for an OpenAI key, an Anthropic key, and a Google key; it just reads whichever one it needs from your environment automatically (<code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GOOGLE_API_KEY</code>), based on the <code>model</code> string. This is exactly why <code>load_dotenv()</code> still runs before any of these calls.</li><li><strong>The <code>model</code> string tells LiteLLM which provider to route to.</strong> OpenAI and Anthropic model names are recognized directly, <code>gpt-5.5</code> and <code>claude-sonnet-5</code> need no prefix. Most other providers need a <code>provider/model-name</code> prefix, which is why the Gemini call above uses <code>gemini/gemini-3.8-flash</code> instead of the bare name.</li><li><strong>Provider quirks get absorbed, not just renamed.</strong> Both of Claude's surprises from Article 2 disappear here. LiteLLM fills in Anthropic's required <code>max_tokens</code> for you (it defaults to the model's maximum output, so pass your own <code>max_tokens=</code> if you want a tighter cost ceiling), and it pulls Claude's thinking out of <code>message.content</code>, so that field holds only the answer, with the reasoning available separately as <code>message.reasoning_content</code>.</li></ul></div>
+<p>Streaming works the same way, with the same <code>stream=True</code> flag from Article 2's OpenAI example, now working identically no matter which provider string you pass:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">stream</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-5&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Write a short poem about the ocean.&quot;</span><span class="p">}],</span>
+    <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream</span><span class="p">:</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">delta</span><span class="o">.</span><span class="n">content</span>
+    <span class="k">if</span> <span class="n">delta</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code></pre></div>
+<h2 id="a-simple-model-router">A simple model router</h2>
+<p>One genuinely practical thing LiteLLM's uniformity buys you: routing different queries to different models based on how demanding they are, without rewriting any call-handling logic, since every provider now speaks the same shape:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="k">def</span><span class="w"> </span><span class="nf">choose_model</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A deliberately simple router: short prompts go to a cheap, fast</span>
+<span class="sd">    model; anything longer is assumed to need more reasoning capability.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;gemini/gemini-3.5-flash-lite&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;claude-sonnet-5&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">ask</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">choose_model</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[routed to </span><span class="si">{</span><span class="n">model</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span>
+
+
+<span class="nb">print</span><span class="p">(</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;What&#39;s 12 * 7?&quot;</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;Walk me through the trade-offs between a monolith and microservices for a 5-person startup building a B2B SaaS product.&quot;</span><span class="p">))</span></code></pre></div>
+<div class="figure">
+  <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg">
+    <rect x="260" y="16" width="120" height="40" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="320" y="41" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1A1F2B">prompt</text>
+
+    <path d="M320 56 L320 76" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowB)"/>
+
+    <polygon points="320,78 410,118 320,158 230,118" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="320" y="114" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#3D4FE0">len(prompt)</text>
+    <text x="320" y="128" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#3D4FE0">&lt; 100 ?</text>
+
+    <path d="M230 118 L120 118 L120 148" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowB)"/>
+    <text x="165" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#1E8A72" font-weight="700">yes</text>
+
+    <path d="M410 118 L520 118 L520 148" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowB)"/>
+    <text x="475" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#A8712E" font-weight="700">no</text>
+
+    <rect x="30" y="149" width="180" height="52" rx="8" fill="#1E8A72" fill-opacity="0.10" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="120" y="168" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#1E8A72">gemini/gemini-3.5</text>
+    <text x="120" y="181" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#1E8A72">-flash-lite</text>
+    <text x="120" y="194" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">cheap &amp; fast</text>
+
+    <rect x="430" y="149" width="180" height="52" rx="8" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="520" y="176" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#A8712E">claude-sonnet-5</text>
+    <text x="520" y="192" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">more capable</text>
+
+    <path d="M120 201 L120 220 L320 220 L320 236" stroke="#B9B6AB" stroke-width="1.5" fill="none"/>
+    <path d="M520 201 L520 220 L320 220 L320 236" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowB)"/>
+
+    <text x="320" y="252" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">litellm.completion(model, messages)</text>
+
+    <defs>
+      <marker id="arrowB" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 2 — The router only ever decides a model-name string; the call underneath is identical either way.</div>
+</div>
+<p>This is deliberately naive, real routing logic would weigh accuracy requirements, latency budgets, and actual cost data rather than just prompt length, but the shape is real: <code>choose_model</code> returns a plain string, and <code>ask</code> doesn't care what that string is. Swap in a smarter <code>choose_model</code> later and nothing else in the function changes. That's the actual payoff of a unified interface: not that it's shorter to type, but that your application logic stops needing to know which provider is underneath it.</p>
+<h2 id="what-litellm-doesn-t-solve">What LiteLLM doesn't solve</h2>
+<p>It's worth being precise about what just got fixed and what didn't. LiteLLM solves exactly one problem: talking to many providers through one consistent call shape. It does not give you chaining, retrieval, persistent memory management, structured output parsing, or tool-calling orchestration, all the other problems Article 1 listed as reasons "just call the API" stops working. LiteLLM is a thin, genuinely useful layer at the model-interface level. It is not, and doesn't try to be, an application framework.</p>
+<p>That's precisely the gap LangChain fills, and it's why LangChain's own model interface (which you'll meet in Article 5) solves a similar provider-switching problem to the one LiteLLM solves here, while also giving you everywhere else that raw API calls fall short.</p>
+<h2 id="what-s-next">What's next</h2>
+<p class="closing">One more article before LangChain: the generation parameters, temperature, top-p, max tokens, and the rest, that every one of these SDKs exposes and that every framework eventually just passes straight through to the underlying API. Worth understanding directly before anything wraps them for you.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-02-openai-anthropic-raw-sdks.html">
+          <span class="pager-label">&larr; Previous · Article 2</span>
+          <span class="pager-title">Your first LLM calls: OpenAI and Anthropic, no framework yet</span>
+        </a>
+        <a class="pager-card next" href="article-04-generation-parameters.html">
+          <span class="pager-label">Next · Article 4 &rarr;</span>
+          <span class="pager-title">Tuning generation: temperature, top-p, and the other parameters</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

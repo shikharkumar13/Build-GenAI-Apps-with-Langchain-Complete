@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tuning generation: temperature, top-p, and the other parameters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+thead th code { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 04 / 15 · ~15 min read</span>
+    </div>
+    <h1>Tuning generation: temperature, top-p, and the other parameters</h1>
+    <p class="dek">The last article below the framework line: the knobs that shape what a model generates, which ones still work on each provider's newest reasoning models, and the reasoning dial that has quietly become the most important one.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#a-one-paragraph-refresher-on-why-any-of-this-works">A quick refresher</a><a class="toc-main" href="#temperature">Temperature</a><a class="toc-sub" href="#try-it-yourself-the-actual-experiment-worth-running">Try it yourself</a><a class="toc-main" href="#top-p-nucleus-sampling">Top-p</a><a class="toc-main" href="#top-k-briefly">Top-k</a><a class="toc-main" href="#reasoning-effort-and-thinking">Reasoning effort and thinking</a><a class="toc-main" href="#max-output-tokens">Max output tokens</a><a class="toc-main" href="#stop-sequences">Stop sequences</a><a class="toc-main" href="#presence-and-frequency-penalty">Repetition penalties</a><a class="toc-main" href="#every-parameter-every-provider">Every parameter, every provider</a><a class="toc-main" href="#what-s-next">What's next</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:26.7%"></div></div>
+        <div class="mini-progress-text">Article 4 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>This is the last raw-SDK article. Everything in this one still runs directly against OpenAI, Anthropic, and Gemini, no framework in sight, but the subject changes: instead of <em>how you talk to</em> a provider (the last two articles), this one is about <em>how a model decides what to generate</em> once it has your prompt, and the handful of parameters every one of these APIs gives you to control that. LangChain will eventually let you set these same parameters through its own interface, but the parameters themselves, what they mean and what values are safe, don't change just because a framework is holding the wire. Worth knowing directly.</p>
+<p>It also pays off two promises. Article 2 and Article 3 both flagged the same trend without explaining it: the newest reasoning models from all three providers increasingly lock the classic sampling knobs down, and Claude and Gemini now think before answering by default. This article covers both properly, because in 2026 "which parameters can I set?" depends on the model as much as on the provider.</p>
+<h2 id="a-one-paragraph-refresher-on-why-any-of-this-works">A one-paragraph refresher on why any of this works</h2>
+<p>Article 1 covered the mechanic underneath every LLM call: given the tokens so far, the model produces a probability distribution over what token comes next, something gets sampled from that distribution, and the process repeats. Every parameter in this article is a knob on that sampling step, not on the model's underlying "knowledge." Temperature, top-p, and top-k all reshape the same distribution before a token gets picked from it. Keep that picture in mind; it's what makes the rest of this article predictable instead of a list of settings to memorize.</p>
+<h2 id="temperature">Temperature</h2>
+<p>Temperature controls how sharply the model favors its highest-probability tokens versus giving lower-probability ones a real chance. Low temperature squeezes the distribution toward the single most likely token, so outputs are consistent and repeatable. High temperature flattens it, so less likely tokens get picked more often, which reads as creativity right up until it reads as nonsense.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 280" xmlns="http://www.w3.org/2000/svg">
+    <text x="160" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">Low temperature (e.g. 0.2)</text>
+    <text x="480" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">High temperature (e.g. 1.4)</text>
+    <text x="320" y="48" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#A8712E" font-style="italic">same model · same prompt · same candidate tokens — only the temperature changes</text>
+    <line x1="320" y1="62" x2="320" y2="236" stroke="#E6E4DD" stroke-width="1" stroke-dasharray="3,4"/>
+    <g>
+      <rect x="45" y="90" width="30" height="140" rx="3" fill="#3D4FE0" fill-opacity="1.00"/>
+      <text x="60" y="85" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.70</text>
+      <rect x="85" y="200" width="30" height="30" rx="3" fill="#3D4FE0" fill-opacity="0.86"/>
+      <text x="100" y="195" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.15</text>
+      <rect x="125" y="214" width="30" height="16" rx="3" fill="#3D4FE0" fill-opacity="0.72"/>
+      <text x="140" y="209" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.08</text>
+      <rect x="165" y="222" width="30" height="8" rx="3" fill="#3D4FE0" fill-opacity="0.58"/>
+      <text x="180" y="217" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.04</text>
+      <rect x="205" y="226" width="30" height="4" rx="3" fill="#3D4FE0" fill-opacity="0.44"/>
+      <text x="220" y="221" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.02</text>
+      <rect x="245" y="228" width="30" height="2" rx="3" fill="#3D4FE0" fill-opacity="0.30"/>
+      <text x="260" y="223" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.01</text>
+      <line x1="33" y1="230" x2="277" y2="230" stroke="#E6E4DD" stroke-width="1.5"/>
+    </g>
+    <text x="160" y="252" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">one token dominates — near-deterministic</text>
+    <g>
+      <rect x="365" y="182" width="30" height="48" rx="3" fill="#3D4FE0" fill-opacity="1.00"/>
+      <text x="380" y="177" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.24</text>
+      <rect x="405" y="190" width="30" height="40" rx="3" fill="#3D4FE0" fill-opacity="0.86"/>
+      <text x="420" y="185" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.20</text>
+      <rect x="445" y="196" width="30" height="34" rx="3" fill="#3D4FE0" fill-opacity="0.72"/>
+      <text x="460" y="191" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.17</text>
+      <rect x="485" y="200" width="30" height="30" rx="3" fill="#3D4FE0" fill-opacity="0.58"/>
+      <text x="500" y="195" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.15</text>
+      <rect x="525" y="204" width="30" height="26" rx="3" fill="#3D4FE0" fill-opacity="0.44"/>
+      <text x="540" y="199" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.13</text>
+      <rect x="565" y="208" width="30" height="22" rx="3" fill="#3D4FE0" fill-opacity="0.30"/>
+      <text x="580" y="203" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#565F70">0.11</text>
+      <line x1="353" y1="230" x2="597" y2="230" stroke="#E6E4DD" stroke-width="1.5"/>
+    </g>
+    <text x="480" y="252" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">probability spread across many tokens — varied, riskier</text>
+  </svg>
+  <div class="figure-caption">Fig. 1 — Temperature doesn't change what the model knows, only how sharply it favors its own top guess before a token gets sampled.</div>
+</div>
+<p>The range is not the same across providers:</p>
+<div class="table-wrap"><table><thead><tr><th>Provider</th><th>Range</th><th>Default</th></tr></thead><tbody><tr><td class="row-label">OpenAI</td><td>0.0 – 2.0</td><td>1.0</td></tr><tr><td class="row-label">Anthropic</td><td>0.0 – 1.0</td><td>1.0</td></tr><tr><td class="row-label">Gemini</td><td>0.0 – 2.0</td><td>1.0</td></tr></tbody></table></div>
+<p>A temperature of 1.5 is a legitimate, if unusual, setting on OpenAI or Gemini. Send the exact same value to Anthropic and it's out of range. If you're writing code that might run against more than one provider (which, after the last two articles, you probably are), don't treat "temperature" as one universal number, check the range for whoever you're actually calling.</p>
+<p>But the range isn't the most important fact in this article any more. This is: <strong>on the newest reasoning models, you often can't set temperature at all.</strong> These models do hidden reasoning before they answer, their providers tune the sampling for that themselves, and they increasingly refuse to let you override it:</p>
+<ul><li><strong>OpenAI</strong>: <code>gpt-5.5</code> rejects any temperature other than the default 1 with a 400 error (<code>Unsupported value: 'temperature' does not support 0 with this model</code>), unless you turn its reasoning off with <code>reasoning_effort="none"</code>. OpenAI's docs say it plainly: when reasoning effort isn't <code>none</code>, remove <code>temperature</code>, <code>top_p</code>, and <code>logprobs</code>.</li><li><strong>Anthropic</strong>: <code>claude-sonnet-5</code> returns a 400 error for any non-default <code>temperature</code>, <code>top_p</code>, or <code>top_k</code>, with no switch to turn them back on. Anthropic's advice is to steer behavior through the system prompt instead. Anthropic introduced the same restriction earlier on Claude Opus 4.7; the smaller <code>claude-haiku-4-5-20251001</code> still accepts the classic knobs. The Python SDK has followed suit: since version 1.0 (August 2026), <code>client.messages.create()</code> no longer has <code>temperature</code>, <code>top_p</code>, or <code>top_k</code> arguments at all, so passing one raises a <code>TypeError</code> before any request is even sent. On a model that still accepts them, you pass them through <code>extra_body</code> instead, which the last example in this article shows.</li><li><strong>Gemini</strong>: still accepts a temperature, but that's where the next gotcha comes in.</li></ul>
+<p>Gemini's version of the gotcha is quieter: Google's own documentation now recommends leaving Gemini 3 models at their default temperature of 1.0 rather than lowering it for more deterministic output, the way you'd instinctively do on the other two providers. Gemini 3's reasoning is tuned for that default, and dropping the temperature can actually cause repetition loops or degraded performance on complex tasks, the opposite of what lowering temperature is supposed to buy you. It's a genuine reversal of the "lower temperature equals more reliable" intuition this article is about to build, and it only applies to Gemini's newest reasoning models, so it's worth rechecking Google's docs before assuming the classic advice still holds for whichever Gemini model you're on.</p>
+<p>One more thing worth internalizing before you touch code: even at temperature 0, output isn't perfectly guaranteed to be identical run to run. Floating-point arithmetic on the hardware serving the request introduces tiny variations that can occasionally tip a near-tied probability one way or the other. Temperature 0 buys you overwhelming consistency, not a cryptographic guarantee. That's a direct echo of Article 1's point about LLMs being non-deterministic; parameters can shrink that non-determinism, not eliminate it.</p>
+<h3 id="try-it-yourself-the-actual-experiment-worth-running">Try it yourself: the actual experiment worth running</h3>
+<p>The clearest way to build intuition for temperature is to watch it change the same prompt in front of you, not read about it:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
+
+<span class="n">load_dotenv</span><span class="p">()</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;OPENAI_API_KEY&quot;</span><span class="p">))</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Write a two-sentence story about a lighthouse keeper.&quot;</span>
+
+<span class="k">for</span> <span class="n">temp</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">]:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-5.5&quot;</span><span class="p">,</span>
+        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+        <span class="n">reasoning_effort</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+        <span class="n">temperature</span><span class="o">=</span><span class="n">temp</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">--- temperature=</span><span class="si">{</span><span class="n">temp</span><span class="si">}</span><span class="s2"> ---&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span></code></pre></div>
+<p>Notice <code>reasoning_effort="none"</code>. Without it, the very first iteration fails with the 400 error from above, because <code>gpt-5.5</code> reasons at <code>medium</code> effort by default and won't take a custom temperature while it does. Switching reasoning off turns it back into a classic sampler, which is exactly what this experiment needs.</p>
+<p>Run that once. The pattern to expect: 0.0 and 0.3 will produce very similar, fairly plain versions of the story, sometimes word-for-word identical between runs. By 0.7 you'll see real variation in phrasing and imagery while the story stays coherent. At 1.0 the outputs diverge more noticeably from each other. By 1.5 you're likely to see occasional weird word choices or shaky grammar creeping in, the model reaching further into its tail of unlikely-but-not-impossible tokens.</p>
+<p>Then run the same loop with a factual prompt instead, something like <code>"What year did the Berlin Wall fall?"</code>. You'll very likely get 1989 at every temperature, and that's instructive in its own way: the model's distribution for that answer is so sharply peaked that there's almost nothing else to sample, and temperature only matters where the model has real alternatives. Ask something it's less sure of, a niche date or an obscure statistic, and higher temperatures are exactly how wrong answers creep in, not because the model "forgot," but because the mechanism doesn't distinguish between "creative" and "wrong": it just samples further from the peak of the distribution, and for a factual question, everything that isn't the peak is an error. This is the concrete reason low temperature is the classic default for anything with one correct answer, and higher temperature belongs to tasks where variety itself is the goal.</p>
+<h2 id="top-p-nucleus-sampling">Top-p (nucleus sampling)</h2>
+<p>Top-p works differently: instead of reshaping the whole distribution like temperature, it truncates it. The model ranks tokens by probability, adds them up starting from the most likely, and only samples from the smallest set of tokens whose cumulative probability crosses the top-p threshold. <code>top_p=0.9</code> means "only consider tokens from the most-likely group that together account for 90% of the probability mass," discarding the long, unlikely tail entirely before any randomness gets applied.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+    <text x="320" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">Tokens ranked by probability, top_p = 0.9</text>
+
+    <!-- bars: descending probability, first 5 included (cumulative crosses 0.9 partway through 5th), rest excluded -->
+    <g font-family="JetBrains Mono, monospace" font-size="10" fill="#565F70">
+      <rect x="40"  y="240" width="60" height="-140" transform="translate(0,140)" fill="#3D4FE0"/>
+      <rect x="40"  y="76"  width="60" height="164" fill="#3D4FE0"/>
+      <text x="70" y="70" text-anchor="middle">0.32</text>
+
+      <rect x="110" y="120" width="60" height="120" fill="#3D4FE0" fill-opacity="0.85"/>
+      <text x="140" y="114" text-anchor="middle">0.24</text>
+
+      <rect x="180" y="152" width="60" height="88" fill="#3D4FE0" fill-opacity="0.7"/>
+      <text x="210" y="146" text-anchor="middle">0.17</text>
+
+      <rect x="250" y="176" width="60" height="64" fill="#3D4FE0" fill-opacity="0.6"/>
+      <text x="280" y="170" text-anchor="middle">0.12</text>
+
+      <rect x="320" y="200" width="60" height="40" fill="#3D4FE0" fill-opacity="0.5"/>
+      <text x="350" y="194" text-anchor="middle">0.08</text>
+
+      <rect x="390" y="222" width="60" height="18" fill="#B9B6AB"/>
+      <text x="420" y="216" text-anchor="middle">0.04</text>
+
+      <rect x="460" y="230" width="60" height="10" fill="#B9B6AB"/>
+      <text x="490" y="224" text-anchor="middle">0.02</text>
+
+      <rect x="530" y="235" width="60" height="5" fill="#B9B6AB"/>
+      <text x="560" y="229" text-anchor="middle">0.01</text>
+    </g>
+
+    <line x1="30" y1="240" x2="600" y2="240" stroke="#E6E4DD" stroke-width="1.5"/>
+
+    <line x1="385" y1="60" x2="385" y2="240" stroke="#A8712E" stroke-width="1.5" stroke-dasharray="5,4"/>
+    <text x="385" y="52" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#A8712E">cumulative ≥ 0.9</text>
+
+    <text x="210" y="264" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#3D4FE0" font-weight="600">kept — sampled from these</text>
+    <text x="490" y="264" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70">discarded entirely</text>
+  </svg>
+  <div class="figure-caption">Fig. 2 — top_p=0.9 keeps only the highest-ranked tokens whose probabilities sum to 90%, then samples (with temperature) from just that shortened list.</div>
+</div>
+<p>The practical effect overlaps with temperature (both increase or decrease output variety), which is why providers recommend adjusting temperature <em>or</em> top-p for a given call, not both at once. Anthropic has gone further and enforces it: on current Claude models that still accept sampling parameters, such as Haiku 4.5, sending both returns an error saying <code>temperature</code> and <code>top_p</code> cannot both be specified. Stacking them makes the actual effect harder to reason about and doesn't buy you anything a single knob can't.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-5.5&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+    <span class="n">reasoning_effort</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+    <span class="n">top_p</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+    <span class="c1"># temperature left at its default when top_p is the one being tuned</span>
+<span class="p">)</span></code></pre></div>
+<p>Where it's accepted, <code>top_p</code> means the same 0.0–1.0 thing on all three providers, so unlike temperature's range it's genuinely consistent. The lockdown from the temperature section applies here too, though: <code>gpt-5.5</code> only takes it with reasoning off, and <code>claude-sonnet-5</code> doesn't take it at all.</p>
+<h2 id="top-k-briefly">Top-k, briefly</h2>
+<p>Top-k is a blunter cousin of top-p: instead of a cumulative probability threshold, it just keeps the k most likely tokens and discards the rest before sampling. <code>top_k=1</code> is equivalent to always picking the single most likely token (greedy decoding, effectively temperature 0). Anthropic and Gemini both expose <code>top_k</code> (on Anthropic, only on models that still accept sampling parameters, so not <code>claude-sonnet-5</code>); OpenAI's Chat Completions API doesn't offer it at all. Anthropic's own guidance is blunt about this one: it's recommended for advanced use cases only, and most applications get everything they need from temperature or top-p alone. Worth knowing it exists; not worth reaching for by default.</p>
+<h2 id="reasoning-effort-and-thinking">Reasoning effort and thinking</h2>
+<p>This is the knob Article 2 promised: how much a model reasons internally before writing its actual answer. On current models it's arguably more important than temperature, and it's a genuinely different kind of knob than everything above. Instead of shaping how one response gets sampled, it controls how much hidden reasoning happens before the answer is written at all. All three providers now think by default on their current models, and all three let you dial it:</p>
+<ul><li><strong>OpenAI</strong>: <code>reasoning_effort</code>, a qualitative string. On <code>gpt-5.5</code> the options are <code>"none"</code>, <code>"low"</code>, <code>"medium"</code> (the default), <code>"high"</code>, and <code>"xhigh"</code>; other models support a slightly different set, which can include <code>"minimal"</code> and <code>"max"</code>.</li><li><strong>Anthropic</strong>: on <code>claude-sonnet-5</code>, thinking is adaptive, meaning the model decides how much to think per request, and you steer its depth with <code>output_config={"effort": ...}</code>, one of <code>"low"</code>, <code>"medium"</code>, <code>"high"</code> (Sonnet 5's default), <code>"xhigh"</code>, or <code>"max"</code>. <code>thinking={"type": "disabled"}</code> turns it off. The older form you'll see in many tutorials, <code>thinking={"type": "enabled", "budget_tokens": 1024}</code>, an explicit reasoning-token budget, now returns a 400 error on Claude 4.7 and later models; it still works on <code>claude-haiku-4-5-20251001</code>, which uses that manual style instead of adaptive thinking.</li><li><strong>Gemini</strong>: Gemini 3 models use <code>thinking_level</code> inside <code>thinking_config</code>; on <code>gemini-3.8-flash</code> that's <code>"low"</code>, <code>"medium"</code> (the default), or <code>"high"</code>, and thinking can't be switched off entirely on that model. Older tutorials written for Gemini 2.5 set a numeric <code>thinking_budget</code> instead.</li></ul>
+<p>Here's what dialing it down looks like on the two providers you haven't set it on yet:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Anthropic</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">google</span><span class="w"> </span><span class="kn">import</span> <span class="n">genai</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">google.genai</span><span class="w"> </span><span class="kn">import</span> <span class="n">types</span>
+
+<span class="n">claude</span> <span class="o">=</span> <span class="n">Anthropic</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ANTHROPIC_API_KEY&quot;</span><span class="p">))</span>
+<span class="n">gemini</span> <span class="o">=</span> <span class="n">genai</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;GOOGLE_API_KEY&quot;</span><span class="p">))</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">claude</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-5&quot;</span><span class="p">,</span>
+    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+    <span class="n">output_config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;effort&quot;</span><span class="p">:</span> <span class="s2">&quot;low&quot;</span><span class="p">},</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span> <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">))</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">gemini</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">generate_content</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-3.8-flash&quot;</span><span class="p">,</span>
+    <span class="n">contents</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">types</span><span class="o">.</span><span class="n">GenerateContentConfig</span><span class="p">(</span>
+        <span class="n">thinking_config</span><span class="o">=</span><span class="n">types</span><span class="o">.</span><span class="n">ThinkingConfig</span><span class="p">(</span><span class="n">thinking_level</span><span class="o">=</span><span class="s2">&quot;low&quot;</span><span class="p">),</span>
+    <span class="p">),</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<p>Three providers, three different shapes, same pattern as everything else in this article. The trade-off is the same everywhere, though: more reasoning generally means better answers on hard, multi-step problems, and more latency and cost on every call, since hidden reasoning tokens are billed as output tokens. For a two-sentence story, low effort is plenty. For a tricky refactor, it's worth paying for more.</p>
+<h2 id="max-output-tokens">Max output tokens</h2>
+<p>Every provider lets you cap how much a model is allowed to generate, both to control cost (you pay per output token) and to stop a model from rambling well past a useful answer. The parameter name is where the differences pile up:</p>
+<ul><li><strong>OpenAI</strong>: <code>max_completion_tokens</code> is the current parameter. There's an older <code>max_tokens</code>, still accepted on some models for backward compatibility, but it's deprecated and doesn't work at all on OpenAI's reasoning-model tiers. Use <code>max_completion_tokens</code> in new code.</li><li><strong>Anthropic</strong>: <code>max_tokens</code>, and as you saw in Article 2, it's required, not optional. Every Anthropic call needs one.</li><li><strong>Gemini</strong>: <code>max_output_tokens</code>, set inside the same <code>GenerateContentConfig</code> object you saw in Article 3.</li></ul>
+<p>One thing changes the maths on current models: the cap covers hidden reasoning as well as the visible answer. OpenAI's cap counts reasoning tokens, and Anthropic's docs state that thinking tokens count toward <code>max_tokens</code>. On <code>gpt-5.5</code> at its default effort, a tight cap like 300 can be used up entirely by reasoning, leaving you an empty reply that stopped with <code>finish_reason</code> set to <code>"length"</code>. So either give reasoning room, or, when you genuinely want a short, capped answer, turn reasoning down, as here:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="c1"># OpenAI</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-5.5&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+    <span class="n">reasoning_effort</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+    <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+<span class="p">)</span></code></pre></div>
+<p>A capped response doesn't get shortened gracefully, it gets cut off mid-thought the instant the cap is hit. If you're capping tokens for cost control on something like a paragraph-length answer, leave enough headroom that a normal response actually finishes; treat the cap as a safety ceiling against runaway generation, not a target length.</p>
+<h2 id="stop-sequences">Stop sequences</h2>
+<p>A stop sequence tells the model to halt generation the moment it produces a specific string, without including that string in the output. This is genuinely useful when you're generating something with a predictable delimiter, list items separated by a marker you control, or a structured format where you know exactly what token should signal "done."</p>
+<ul><li><strong>OpenAI</strong>: <code>stop</code>, a string or a list of up to a few strings, but only on OpenAI's older, non-reasoning chat models. The GPT-5 family, <code>gpt-5.5</code> included, rejects it with <code>Unsupported parameter: 'stop' is not supported with this model</code>.</li><li><strong>Anthropic</strong>: <code>stop_sequences</code>, a list, and still supported on current models, <code>claude-sonnet-5</code> included.</li><li><strong>Gemini</strong>: <code>stop_sequences</code>, inside <code>GenerateContentConfig</code>.</li></ul>
+<p>Since <code>gpt-5.5</code> won't take one, here it is on Claude:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">response</span> <span class="o">=</span> <span class="n">claude</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-5&quot;</span><span class="p">,</span>
+    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">4096</span><span class="p">,</span>
+    <span class="n">stop_sequences</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;DONE&quot;</span><span class="p">],</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;List three colors, one per line, then write DONE.&quot;</span><span class="p">}],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span> <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">stop_reason</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">stop_sequence</span><span class="p">)</span></code></pre></div>
+<p>The last line is worth running once: <code>stop_reason</code> comes back as <code>"stop_sequence"</code> and <code>stop_sequence</code> as <code>"DONE"</code>, which is how your code can tell a deliberate stop apart from the model simply finishing (<code>"end_turn"</code>) or hitting the cap (<code>"max_tokens"</code>).</p>
+<h2 id="presence-and-frequency-penalty">Presence and frequency penalty</h2>
+<p>These two reduce repetition, but in different ways. Frequency penalty scales down a token's probability in proportion to how many times it's already appeared in the output so far, so a word used five times gets suppressed harder than a word used once. Presence penalty is blunter: any token that has appeared at all gets a flat penalty, regardless of how many times. Frequency penalty fights "the model keeps reusing the same phrase over and over"; presence penalty pushes the model toward covering new topics instead of circling the same ones.</p>
+<p>This is the parameter set with the least support left anywhere. <strong>OpenAI's GPT-5 family, <code>gpt-5.5</code> included, doesn't accept either penalty; they only work on OpenAI's older, non-reasoning chat models. Anthropic has never offered either one. And Gemini's config has fields for both, but Google hasn't enabled them on every model</strong>: the Gemini 2.5 models, for example, reject them with <code>Penalty is not enabled for models/...</code>. So if a model keeps looping on the same phrase, don't reach for a penalty first. A stop sequence, a clearer prompt, or a fresh call is the fix that ports everywhere.</p>
+<h2 id="every-parameter-every-provider">Every parameter, every provider</h2>
+<p>The full picture, worth bookmarking rather than memorizing:</p>
+<div class="table-wrap wide"><table><thead><tr><th>Parameter</th><th>OpenAI (<code>gpt-5.5</code>)</th><th>Anthropic (<code>claude-sonnet-5</code>)</th><th>Gemini (<code>gemini-3.8-flash</code>)</th></tr></thead><tbody><tr><td class="row-label">Temperature</td><td><code>temperature</code>, 0–2, only with <code>reasoning_effort="none"</code></td><td>Rejected (400); 0–1 on Haiku 4.5</td><td><code>temperature</code>, 0–2, but Google recommends keeping 1.0</td></tr><tr><td class="row-label">Top-p</td><td><code>top_p</code>, only with <code>reasoning_effort="none"</code></td><td>Rejected (400); on Haiku 4.5, never alongside temperature</td><td><code>top_p</code></td></tr><tr><td class="row-label">Top-k</td><td>not available</td><td>Rejected (400); available on Haiku 4.5</td><td><code>top_k</code></td></tr><tr><td class="row-label">Reasoning</td><td><code>reasoning_effort</code>, <code>"none"</code> to <code>"xhigh"</code> (default <code>"medium"</code>)</td><td><code>output_config={"effort": ...}</code> (default <code>"high"</code>)</td><td><code>thinking_config</code> with <code>thinking_level</code> (default <code>"medium"</code>)</td></tr><tr><td class="row-label">Max output tokens</td><td><code>max_completion_tokens</code> (includes reasoning)</td><td><code>max_tokens</code> (required, includes thinking)</td><td><code>max_output_tokens</code></td></tr><tr><td class="row-label">Stop sequences</td><td>not supported on the GPT-5 family</td><td><code>stop_sequences</code></td><td><code>stop_sequences</code></td></tr><tr><td class="row-label">Presence / frequency penalty</td><td>not supported on the GPT-5 family</td><td>not available</td><td>in the config, but not enabled on every model</td></tr></tbody></table></div>
+<p>Read that table column by column and a pattern jumps out: on each provider's current mainstream model, the parameters that still work everywhere are the reasoning dial and the output cap. The classic sampling knobs survive mainly on older or smaller models and on reasoning-off modes. Put together, one call using several of these at once looks like this on OpenAI:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-5.5&quot;</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+    <span class="n">reasoning_effort</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+    <span class="n">temperature</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+<span class="p">)</span></code></pre></div>
+<p>The Anthropic equivalent on <code>claude-sonnet-5</code> swaps the sampling knobs for the effort dial and a stop sequence:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">response</span> <span class="o">=</span> <span class="n">claude</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-5&quot;</span><span class="p">,</span>
+    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span>
+    <span class="n">output_config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;effort&quot;</span><span class="p">:</span> <span class="s2">&quot;low&quot;</span><span class="p">},</span>
+    <span class="n">stop_sequences</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;DONE&quot;</span><span class="p">],</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+<span class="p">)</span></code></pre></div>
+<p>And if you specifically need classic sampling on Claude, drop to the smaller model that still accepts it, and pass the knob through <code>extra_body</code>, since the 1.x SDK no longer has a <code>temperature</code> argument. Set temperature <em>or</em> top-p, not both:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">response</span> <span class="o">=</span> <span class="n">claude</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-haiku-4-5-20251001&quot;</span><span class="p">,</span>
+    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+    <span class="n">stop_sequences</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;DONE&quot;</span><span class="p">],</span>
+    <span class="n">extra_body</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">},</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}],</span>
+<span class="p">)</span></code></pre></div>
+<p><code>extra_body</code> merges extra fields into the JSON request the SDK sends, which is the general escape hatch for any parameter the API accepts but the SDK doesn't declare. Send the same <code>extra_body</code> to <code>claude-sonnet-5</code> and you're back to the 400 error from the temperature section: the SDK lets it through, the model still refuses it.</p>
+<h2 id="what-s-next">What's next</h2>
+<p class="closing">That closes out the raw-SDK stretch of this series. Three articles ago, Article 1 argued that a framework's abstractions only really make sense once you've felt the problem they're solving with your own hands. You've now made real calls to three different providers, felt three different conventions for the exact same concepts, built a router on top of a unified interface, and tuned generation parameters that don't agree on their valid ranges, or even on whether a given model will accept them at all. Article 5 is where LangChain finally enters the series, and everything it does at the model-interface level will be recognizable immediately, because it's solving problems you've already solved by hand.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-03-multi-provider-litellm.html">
+          <span class="pager-label">&larr; Previous · Article 3</span>
+          <span class="pager-title">The multi-provider landscape: Gemini, other providers, and a unified interface</span>
+        </a>
+        <a class="pager-card next" href="article-05-langchain-model-interface.html">
+          <span class="pager-label">Next · Article 5 &rarr;</span>
+          <span class="pager-title">Setup, and talking to models through LangChain's unified interface</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

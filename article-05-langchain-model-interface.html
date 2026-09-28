@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup, and talking to models through LangChain's unified interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+thead th code { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 05 / 15 · ~10 min read</span>
+    </div>
+    <h1>Setup, and talking to models through LangChain's unified interface</h1>
+    <p class="dek">LangChain finally enters the series: one interface for OpenAI, Anthropic and Gemini, the adapter pattern that makes it work, and the model-level rules from Article 4 that no framework can paper over.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#setup">Setup</a><a class="toc-main" href="#your-first-langchain-call">Your first LangChain call</a><a class="toc-main" href="#now-swap-the-provider">Now swap the provider</a><a class="toc-main" href="#why-this-actually-works-one-shared-base-class">One shared base class</a><a class="toc-main" href="#streaming">Streaming</a><a class="toc-main" href="#init-chat-model-one-function-any-provider">init_chat_model</a><a class="toc-main" href="#where-the-unification-stops">Where the unification stops</a><a class="toc-main" href="#setting-up-the-project">Setting up the project</a><a class="toc-main" href="#what-s-next">What's next</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:33.3%"></div></div>
+        <div class="mini-progress-text">Article 5 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>LangChain enters the series here. Everything from the last three articles was building toward this moment on purpose: you've now felt, with your own hands, exactly what LangChain's model interface exists to fix. Three SDKs. Three different places for a system instruction. Three different response shapes, one of them a list of content blocks with a thinking block in front. Sampling knobs that don't agree on their ranges, or even on whether a given model accepts them. Watch what happens to all of that in this article, and, just as usefully, which parts of Article 4's lessons a framework can't make disappear.</p>
+<h2 id="setup">Setup</h2>
+<p>LangChain's architecture, previewed back in Article 1, is concrete now instead of abstract: <code>langchain-core</code> holds the shared abstractions, and each provider gets its own thin integration package.</p>
+<div class="code"><div class="code-head"><span class="code-lang">terminal</span><button class="copy-btn" type="button">Copy</button></div><pre><code>pip<span class="w"> </span>install<span class="w"> </span>langchain<span class="w"> </span>langchain-openai<span class="w"> </span>langchain-anthropic<span class="w"> </span>langchain-google-genai</code></pre></div>
+<p>Four packages: <code>langchain</code> itself, plus one integration package per provider you want to talk to. Your <code>.env</code> file doesn't change at all, keep the same <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, and <code>GOOGLE_API_KEY</code> from Articles 2 and 3. Each integration package reads its provider's key from the environment automatically, exactly like the raw SDKs did.</p>
+<h2 id="your-first-langchain-call">Your first LangChain call</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatOpenAI</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.messages</span><span class="w"> </span><span class="kn">import</span> <span class="n">SystemMessage</span><span class="p">,</span> <span class="n">HumanMessage</span>
+
+<span class="n">load_dotenv</span><span class="p">()</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ChatOpenAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-5.5&quot;</span><span class="p">)</span>
+
+<span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">SystemMessage</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;You are a concise, helpful assistant.&quot;</span><span class="p">),</span>
+    <span class="n">HumanMessage</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;Explain what an API is in two sentences.&quot;</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<div class="walkthrough"><p class="wt-label">Line by line: what's familiar, what's new</p><ul><li><code>ChatOpenAI(model="gpt-5.5")</code> builds the model object. No explicit API key here at all; it's read from <code>OPENAI_API_KEY</code> automatically, the same environment variable you've had in your <code>.env</code> since Article 2.</li><li><code>SystemMessage</code> and <code>HumanMessage</code> come from <code>langchain_core.messages</code>, LangChain's own message classes. They replace the <code>{"role": ..., "content": ...}</code> dicts you built by hand in every earlier article. Functionally they carry the same information; structurally they're real Python objects instead of raw dicts, which matters once you start passing messages through chains later in this series.</li><li><code>model.invoke(messages)</code> is the call. One method name, <code>invoke</code>, regardless of which provider is underneath, replacing <code>chat.completions.create</code>, <code>messages.create</code>, and <code>generate_content</code> from the last two articles.</li><li><code>response.text</code> gets you the reply as a plain string. One consistent path, replacing <code>response.choices[0].message.content</code>, Article 2's filtering of Claude's text blocks, and Gemini's <code>response.text</code>. The object <code>invoke</code> returns is an <code>AIMessage</code>, and it also has a <code>.content</code> attribute, but reach for <code>.text</code> out of habit: the next section shows why.</li></ul></div>
+<p>That's the whole payoff of the last three articles, made visible in four lines.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+    <text x="160" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#565F70">Articles 2-3: three shapes</text>
+    <text x="480" y="24" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#3D4FE0">Article 5: one shape</text>
+
+    <rect x="20" y="40" width="280" height="34" rx="6" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="160" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">client.chat.completions.create(...)</text>
+
+    <rect x="20" y="82" width="280" height="34" rx="6" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="160" y="104" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">client.messages.create(...)</text>
+
+    <rect x="20" y="124" width="280" height="34" rx="6" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="160" y="146" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">client.models.generate_content(...)</text>
+
+    <path d="M300 57 L340 150" stroke="#B9B6AB" stroke-width="1.5"/>
+    <path d="M300 99 L340 150" stroke="#B9B6AB" stroke-width="1.5"/>
+    <path d="M300 141 L340 150" stroke="#B9B6AB" stroke-width="1.5"/>
+    <path d="M340 150 L380 150" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrow5)"/>
+
+    <rect x="382" y="120" width="230" height="60" rx="8" fill="#3D4FE0" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="497" y="146" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#ffffff">model.invoke(messages)</text>
+    <text x="497" y="164" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" fill="#ffffff">.text</text>
+
+    <text x="160" y="188" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70" font-style="italic">plus 3 different system-instruction</text>
+    <text x="160" y="202" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70" font-style="italic">conventions and 3 response shapes</text>
+
+    <text x="497" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70" font-style="italic">same calling code regardless of</text>
+    <text x="497" y="214" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70" font-style="italic">which class is constructed</text>
+
+    <defs>
+      <marker id="arrow5" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 1 — Three raw call shapes from Articles 2 and 3 collapse into one calling pattern once a provider sits behind LangChain's interface.</div>
+</div>
+<h2 id="now-swap-the-provider">Now swap the provider</h2>
+<p>This is the part worth actually running, not just reading. Change two lines, keep everything else identical:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_anthropic</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatAnthropic</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">ChatAnthropic</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-5&quot;</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<p>Same <code>messages</code> list, unchanged, <code>SystemMessage</code> included. Same <code>.invoke(messages)</code> call. Same <code>.text</code> access. Recall from Article 2 that Anthropic's raw SDK doesn't even accept a <code>system</code>-role message in its <code>messages</code> list at all, it has to be a separate top-level argument. LangChain's <code>ChatAnthropic</code> class absorbs that translation internally: hand it a <code>SystemMessage</code> and it does the right thing for Anthropic's actual API underneath. It also fills in Anthropic's required <code>max_tokens</code> for you (it defaults to the model's maximum output), which is why there isn't one here.</p>
+<p>Here's why <code>.text</code> rather than <code>.content</code>. Recall Article 2's discovery that <code>claude-sonnet-5</code> thinks by default and returns its reasoning as a <code>thinking</code> block ahead of the answer. LangChain doesn't hide that: for this call, <code>response.content</code> is a list of content blocks, <code>[{"type": "thinking", ...}, {"type": "text", "text": "..."}]</code>, not a string, so <code>print(response.content)</code> would print the whole list, reasoning included. <code>response.text</code> walks those blocks and returns just the answer text, which is exactly the filtering you wrote by hand in Article 2, now done for you.</p>
+<p>Gemini, same story again:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_google_genai</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatGoogleGenerativeAI</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">ChatGoogleGenerativeAI</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-3.8-flash&quot;</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span></code></pre></div>
+<p>Recall Article 3: Gemini's raw SDK wanted <code>contents</code> instead of <code>messages</code>, <code>"model"</code> instead of <code>"assistant"</code> as the role name, and text wrapped in a <code>"parts"</code> list. None of that surfaces here. Same messages, same call, same <code>.text</code>. Gemini is a second reason to prefer <code>.text</code>, too: with Gemini 3 models, <code>response.content</code> typically comes back as a list of blocks as well, because LangChain keeps the reply's thought signature from Article 3 attached to the text block so it can be sent back on the next turn.</p>
+<p>Three providers, one interface. This is genuinely what "LangChain solves the provider-switching problem" means in practice, not marketing language: it's the exact same calling code, with only the constructor swapped.</p>
+<h2 id="why-this-actually-works-one-shared-base-class">Why this actually works: one shared base class</h2>
+<p>This isn't three separate implementations that happen to look similar. <code>ChatOpenAI</code>, <code>ChatAnthropic</code>, and <code>ChatGoogleGenerativeAI</code> all inherit from the same class, <code>BaseChatModel</code>, defined once in <code>langchain-core</code>. <code>.invoke()</code> and <code>.stream()</code> are defined on that shared base, with the same method signature and the same <code>AIMessage</code> return type, and each provider's integration package is responsible only for translating LangChain's message objects into whatever shape that provider's actual API wants, then translating the response back. That's the whole architecture. It's not magic, it's an adapter pattern, applied consistently across every provider LangChain supports.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg">
+    <rect x="200" y="16" width="240" height="50" rx="8" fill="#3D4FE0" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="320" y="38" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" fill="#ffffff">BaseChatModel</text>
+    <text x="320" y="55" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#ffffff">.invoke() · .stream()</text>
+
+    <path d="M120 100 L280 66" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrow6)"/>
+    <path d="M320 100 L320 66" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrow6)"/>
+    <path d="M520 100 L360 66" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrow6)"/>
+
+    <rect x="30" y="101" width="180" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="120" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#1A1F2B">ChatOpenAI</text>
+    <text x="120" y="139" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70">talks to api.openai.com</text>
+
+    <rect x="230" y="101" width="180" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="320" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#1A1F2B">ChatAnthropic</text>
+    <text x="320" y="139" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70">talks to api.anthropic.com</text>
+
+    <rect x="430" y="101" width="180" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="520" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#1A1F2B">ChatGoogleGenerativeAI</text>
+    <text x="520" y="139" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70">talks to Gemini's API</text>
+
+    <text x="320" y="182" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70">each subclass's only job: translate LangChain's messages into its</text>
+    <text x="320" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70">provider's actual request shape, then translate the response back</text>
+
+    <defs>
+      <marker id="arrow6" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 2 — Not three separate implementations that happen to look similar: three real subclasses of one shared base, an adapter pattern applied consistently.</div>
+</div>
+<h2 id="streaming">Streaming</h2>
+<p>Streaming follows the same unification:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="n">messages</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code></pre></div>
+<p><code>.stream()</code> yields <code>AIMessageChunk</code> objects instead of one <code>AIMessage</code>, each with the same <code>.text</code> you already know, containing just that chunk's fragment of the answer. Same method name, same attribute, regardless of provider. And the <code>.content</code>-versus-<code>.text</code> point matters even more here: with Claude, some chunks carry thinking deltas rather than answer text, so <code>print(chunk.content)</code> would sprinkle raw reasoning dicts into your output, while <code>chunk.text</code> is simply empty for those chunks. Compare that to Article 2's <code>chunk.choices[0].delta.content</code> versus Article 3's <code>chunk.text</code>, and this is the difference a unified interface actually buys you: one pattern, memorized once.</p>
+<h2 id="init-chat-model-one-function-any-provider"><code>init_chat_model</code>: one function, any provider</h2>
+<p>There's an even more compact entry point worth knowing, useful when the provider itself is something you want to decide at runtime rather than hardcode as an import:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">init_chat_model</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">init_chat_model</span><span class="p">(</span><span class="s2">&quot;openai:gpt-5.5&quot;</span><span class="p">)</span>
+<span class="c1"># or</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">init_chat_model</span><span class="p">(</span><span class="s2">&quot;anthropic:claude-sonnet-5&quot;</span><span class="p">)</span>
+<span class="c1"># or</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">init_chat_model</span><span class="p">(</span><span class="s2">&quot;google_genai:gemini-3.8-flash&quot;</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span></code></pre></div>
+<p><code>init_chat_model</code> takes a single <code>"provider:model-name"</code> string, figures out which integration package to use, and hands you back the right class already constructed, a <code>ChatOpenAI</code>, <code>ChatAnthropic</code>, or <code>ChatGoogleGenerativeAI</code> under the hood, indistinguishable from building it directly. It's a small function, but it's the cleanest expression of what this whole article has been demonstrating: from here on, the provider is a string, not a different code path.</p>
+<h2 id="where-the-unification-stops">Where the unification stops</h2>
+<p>Worth being precise, in the same spirit as Article 3's honesty about what LiteLLM doesn't solve: LangChain's unification is real at the level you've just seen, <code>invoke</code>, <code>stream</code>, message objects, <code>.text</code>, and it now reaches further into constructor arguments than you might expect. The three classes store settings under provider-flavored field names underneath (<code>ChatOpenAI</code> keeps the model in <code>model_name</code>, <code>ChatGoogleGenerativeAI</code> keeps the output cap in <code>max_output_tokens</code>), but each accepts the common spellings as aliases, so <code>model=</code>, <code>max_tokens=</code>, and either <code>stop=</code> or <code>stop_sequences=</code> all work on all three classes and get translated into each API's own parameter.</p>
+<p>What LangChain can't unify is what a given model will actually accept, which is Article 4's whole lesson, and it surfaces through the wrapper in three different ways:</p>
+<ul><li><strong>Passed through and refused.</strong> <code>init_chat_model("openai:gpt-5.5", stop=["DONE"])</code> constructs happily, and then the call fails with the same <code>Unsupported parameter: 'stop'</code> 400 error from Article 4. LangChain translated the name correctly; the model still says no.</li><li><strong>Silently dropped.</strong> <code>ChatOpenAI</code> knows that <code>gpt-5.5</code> only accepts <code>temperature=1</code> while it's reasoning, so it quietly drops any other value rather than erroring. Set <code>temperature=0.2</code> on <code>ChatOpenAI(model="gpt-5.5")</code> and it simply has no effect; add <code>reasoning_effort="none"</code> and the temperature is sent again.</li><li><strong>Sent and rejected.</strong> <code>ChatAnthropic</code> makes no such allowance: <code>ChatAnthropic(model="claude-sonnet-5", temperature=0.3)</code> sends the temperature, and every call fails with Article 4's 400 error.</li></ul>
+<p>Three integrations, three different behaviors for the same kind of mistake. That's not a knock on LangChain so much as a reminder of what it is: a translation layer passing your intent to real APIs that each have their own opinion.</p>
+<p>A related check worth running on the parameter Article 4 covered directly, the reasoning-effort knobs: <code>ChatOpenAI</code>, <code>ChatAnthropic</code>, and <code>ChatGoogleGenerativeAI</code> all expose a <code>reasoning_effort</code> field, a genuine, if partial, unification over the three different shapes Article 4 walked through (OpenAI's own <code>reasoning_effort</code> string, Anthropic's <code>output_config={"effort": ...}</code>, Gemini's <code>thinking_level</code>). Each class translates it into its provider's real parameter: on <code>ChatAnthropic</code>, for example, <code>reasoning_effort="low"</code> becomes <code>output_config={"effort": "low"}</code> with adaptive thinking switched on. But the values accepted underneath that shared name still don't match: constructing <code>ChatAnthropic(reasoning_effort=...)</code> only accepts <code>"low"</code>, <code>"medium"</code>, <code>"high"</code>, <code>"xhigh"</code>, or <code>"max"</code>, confirmed by actually passing <code>"minimal"</code> and watching it reject with a validation error, while <code>ChatGoogleGenerativeAI</code>'s version only accepts <code>"minimal"</code>, <code>"low"</code>, <code>"medium"</code>, or <code>"high"</code>, an overlapping but genuinely different set, and even that passes validation without guaranteeing the model supports it: per Article 4, <code>gemini-3.8-flash</code> itself only offers <code>"low"</code>, <code>"medium"</code>, and <code>"high"</code>. The one value all three classes and all three default models agree on is <code>"low"</code>. Same lesson as the temperature story above, one level up: a shared field name is real progress over three unrelated ones, but it's not the same thing as a shared contract, check the actual accepted values before assuming they line up.</p>
+<h2 id="setting-up-the-project">Setting up the project</h2>
+<p>Starting here, every remaining article in this series builds one continuous project: an AI assistant for <strong>Tidewave</strong>, a fictional project-management and team-collaboration SaaS product with a standard subscription plan. Over the rest of the series, this assistant grows from the plain single-turn call you just wrote into something that remembers conversations, answers questions by retrieving Tidewave's actual documentation, checks things like a customer's subscription status through a tool, and finally acts as a proper agent deciding for itself when to search docs versus when to use a tool.</p>
+<p>The first piece of that project's actual code is small, worth writing now: a single function the rest of the series will reuse rather than re-importing a specific provider class in every article.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">init_chat_model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.language_models.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseChatModel</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_model</span><span class="p">(</span>
+    <span class="n">provider_and_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;anthropic:claude-sonnet-5&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseChatModel</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a configured chat model for Tidewave&#39;s assistant.</span>
+
+<span class="sd">    Accepts an init_chat_model-style &quot;provider:model-name&quot; string, so</span>
+<span class="sd">    swapping the underlying provider anywhere in the project later is a</span>
+<span class="sd">    one-argument change, not a rewrite. Any extra settings, such as</span>
+<span class="sd">    reasoning_effort=&quot;low&quot;, are passed straight through.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">init_chat_model</span><span class="p">(</span><span class="n">provider_and_model</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code></pre></div>
+<p>Notice what's deliberately <em>not</em> here: a temperature. The classic instinct for a support assistant is a low temperature, since most of what it'll do (from Article 9 onward) is answer questions accurately from documentation, not write creatively. But the previous section just showed what that instinct does on each provider's current default model: a hard 400 error on <code>claude-sonnet-5</code>, a silently ignored value on <code>gpt-5.5</code>, and a setting Google advises against on <code>gemini-3.8-flash</code>. So <code>get_model()</code> leaves sampling alone and lets each model use its tuned defaults, and accuracy comes from where it actually comes from on these models: clear instructions in the prompt, which Anthropic itself recommends in place of sampling parameters, and grounding answers in retrieved documentation later in the series. When a particular step does want to trade depth for speed, <code>get_model(reasoning_effort="low")</code> is the portable dial, since <code>"low"</code> is the value all three classes accept.</p>
+<p>Every later article's hands-on code will call <code>get_model()</code> rather than constructing a provider class directly, which means the entire rest of this series' project code is, from this point forward, provider-agnostic by construction, and correctly configured by default.</p>
+<h2 id="what-s-next">What's next</h2>
+<p class="closing">Next up: prompt templates and structured output, turning the raw strings you've been hardcoding into reusable, parameterized templates, and getting a model's reply to reliably come back as data your code can use instead of a paragraph you have to parse by hand.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-04-generation-parameters.html">
+          <span class="pager-label">&larr; Previous · Article 4</span>
+          <span class="pager-title">Tuning generation: temperature, top-p, and the other parameters</span>
+        </a>
+        <a class="pager-card next" href="article-06-prompt-templates-structured-output.html">
+          <span class="pager-label">Next · Article 6 &rarr;</span>
+          <span class="pager-title">Prompt templates and structured output</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>

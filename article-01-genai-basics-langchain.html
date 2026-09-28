@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generative AI basics, and where LangChain actually fits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px;
+  padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.masthead-meta {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+h1 {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(30px, 4.6vw, 44px);
+  font-weight: 800;
+  line-height: 1.14;
+  letter-spacing: -0.015em;
+  margin: 0 0 18px;
+  color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif;
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 620px;
+  margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 11px; margin: 0 0 24px; }
+.toc a {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  padding-left: 12px;
+  margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: 3.4em;
+  line-height: 0.85;
+  float: left;
+  margin: 0.03em 0.09em 0 0;
+  color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif;
+  font-size: 23px;
+  font-weight: 700;
+  margin: 56px 0 18px;
+  color: var(--text);
+  scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  background: var(--accent-dim);
+  color: var(--accent);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22);
+  border-left: 4px solid var(--amber);
+  border-radius: 10px;
+  padding: 24px 28px;
+  margin: 40px 0;
+  font-size: 17px;
+  overflow: hidden;
+}
+.callout::before {
+  content: '\201C';
+  position: absolute;
+  top: -18px;
+  left: 16px;
+  font-family: 'Lora', serif;
+  font-size: 84px;
+  color: var(--amber);
+  opacity: 0.16;
+  line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+.roadmap {
+  list-style: none;
+  position: relative;
+  padding: 6px 0;
+  margin: 10px 0 26px;
+  counter-reset: step;
+}
+.roadmap::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 28px;
+  bottom: 28px;
+  width: 2px;
+  background: var(--border);
+}
+.roadmap li {
+  counter-increment: step;
+  position: relative;
+  padding: 9px 0 9px 56px;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+.roadmap li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  z-index: 1;
+}
+.roadmap li.current { color: var(--text); font-weight: 600; }
+.roadmap li.current em { color: var(--accent); font-style: normal; }
+.roadmap li.current::before {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 5px var(--accent-dim);
+}
+
+.figure {
+  margin: 44px 0;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  text-align: left;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 56px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 36px 24px;
+}
+.site-footer-inner {
+  max-width: 952px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 01 / 15 · ~13 min read</span>
+    </div>
+    <h1>Generative AI basics, and where LangChain actually fits</h1>
+    <p class="dek">A hands-on, 15-part series on building real LLM applications with LangChain 1.x — starting, deliberately, with three articles of raw API calls before the framework enters the picture.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a href="#sec-1">What "generative" means</a>
+          <a href="#sec-2">Why raw models aren't assistants</a>
+          <a href="#sec-3">Why "just call the API" breaks down</a>
+          <a href="#sec-4">What LangChain is</a>
+          <a href="#sec-5">Where it sits in the stack</a>
+          <a href="#sec-6">Why we wait to install it</a>
+          <a href="#sec-7">What we'll build</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:6.7%"></div></div>
+        <div class="mini-progress-text">Article 1 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+
+      <p>If you've spent any time around AI tools in the last couple of years, you've heard "generative AI" used to mean everything from a chatbot to an image generator to a coding assistant. Before we touch a single line of LangChain code, it's worth being precise about what generative AI actually is, what an LLM is doing when it "thinks," and, most importantly for this series, why a raw API call to a model is rarely enough to build a real application. That gap is exactly what LangChain exists to close. We're going to feel that gap ourselves first, though, by working directly against a couple of provider APIs before we ever install LangChain.</p>
+
+      <p>This article is the only one in the series without code. Think of it as the map before the hike. From Article 2 onward, every article pairs theory with a full hands-on implementation. The next three articles do that at the raw-SDK level: OpenAI, Anthropic, and a couple of other providers, no framework involved. Only once we've felt the rough edges of that firsthand does LangChain enter the series, starting at Article 5.</p>
+
+      <h2 id="sec-1">What "generative" actually means</h2>
+
+      <p>Most of the machine learning that came before the current wave was <strong>discriminative</strong>: given an input, predict a label. Is this email spam or not spam? Will this customer churn? Is this a cat or a dog? The model draws a boundary between categories that already exist in the data.</p>
+
+      <p>A <strong>generative</strong> model does something different: it learns the underlying patterns in data well enough to produce new data that resembles what it was trained on. A generative image model doesn't classify a photo; it produces one. A generative language model works the same way: instead of labeling a sentence, it produces the next sentence, word by word, and the one after that, until it has generated an answer, a poem, or a block of code that didn't exist before you asked for it.</p>
+
+      <p>Large Language Models (LLMs) are the generative models this series cares about. At a mechanical level, an LLM does one thing repeatedly: given a sequence of tokens (roughly, word-pieces), it predicts the probability distribution over what token comes next. Sample from that distribution, append the result, repeat. Everything an LLM appears to do (reasoning, summarizing, writing code, holding a conversation) emerges from that one repeated act, trained on enormous amounts of text.</p>
+
+      <p>Worth sitting with for a second, since it explains something you'll run into constantly once you start building: "predict what comes next" is really the same shape of problem as a spam filter deciding spam-or-not, just with tens of thousands of possible answers, the model's whole vocabulary, instead of two. At every step the model produces a probability for every single one of those tokens, and generating text means sampling from that distribution rather than always grabbing the single most likely token. That sampling step is exactly where the fourth property below, non-deterministic, actually comes from: ask the same question twice, and a different token can get drawn at some step along the way, and everything generated after that point can cascade into a visibly different answer.</p>
+
+      <div class="figure">
+        <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="20" width="600" height="42" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="320" y="46" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="13" fill="#1A1F2B">"The cat sat on the ___"</text>
+
+          <path d="M320 62 L320 84" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowT1)"/>
+          <text x="400" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">a probability over every possible next token</text>
+
+          <rect x="60" y="90" width="200" height="26" rx="4" fill="#3D4FE0" fill-opacity="0.75"/>
+          <text x="70" y="107" font-family="Inter, sans-serif" font-size="11.5" fill="#ffffff" font-weight="600">mat</text>
+          <text x="270" y="107" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">62%</text>
+
+          <rect x="60" y="122" width="90" height="26" rx="4" fill="#3D4FE0" fill-opacity="0.45"/>
+          <text x="70" y="139" font-family="Inter, sans-serif" font-size="11.5" fill="#ffffff" font-weight="600">chair</text>
+          <text x="270" y="139" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">18%</text>
+
+          <rect x="60" y="154" width="65" height="26" rx="4" fill="#3D4FE0" fill-opacity="0.30"/>
+          <text x="70" y="171" font-family="Inter, sans-serif" font-size="11.5" fill="#ffffff" font-weight="600">floor</text>
+          <text x="270" y="171" font-family="JetBrains Mono, monospace" font-size="11" fill="#1A1F2B">12%</text>
+
+          <rect x="60" y="186" width="14" height="26" rx="4" fill="#3D4FE0" fill-opacity="0.15"/>
+          <text x="90" y="203" font-family="Inter, sans-serif" font-size="11" fill="#565F70">moon, ...50,000 more</text>
+          <text x="270" y="203" font-family="JetBrains Mono, monospace" font-size="11" fill="#565F70">0.3%, ...</text>
+
+          <path d="M340 130 L400 130" stroke="#A8712E" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowT2)"/>
+          <text x="490" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#A8712E" font-weight="700">sample from this,</text>
+          <text x="490" y="128" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#A8712E" font-weight="700">don't always pick #1</text>
+          <text x="490" y="150" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">this is where "non-deterministic"</text>
+          <text x="490" y="165" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">actually comes from</text>
+
+          <text x="320" y="240" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1A1F2B">Same input, two runs: <tspan font-family="JetBrains Mono, monospace" fill="#3D4FE0">"...the mat."</tspan> and <tspan font-family="JetBrains Mono, monospace" fill="#3D4FE0">"...the chair."</tspan> are both genuine draws.</text>
+
+          <defs>
+            <marker id="arrowT1" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+            </marker>
+            <marker id="arrowT2" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#A8712E"/>
+            </marker>
+          </defs>
+        </svg>
+        <div class="figure-caption">Fig. 1 — "Predict the next token" is a classification problem over the whole vocabulary. Sampling instead of always taking the top answer is the entire mechanism behind a model giving you a different answer the second time.</div>
+      </div>
+
+      <p>A few properties of that mechanism matter a lot once you start building with LLMs, so they're worth naming now:</p>
+
+      <ul>
+        <li><strong>They only see what's in the context window.</strong> An LLM has no persistent memory of your previous conversations unless you explicitly put that history back into the prompt each time. This single fact is the reason "memory" needs to be engineered: it isn't automatic.</li>
+        <li><strong>They don't know anything past their training cutoff, and they don't know your private data at all.</strong> A model can't answer questions about your company's internal documents, yesterday's news, or a database it was never shown. This is the reason retrieval exists.</li>
+        <li><strong>They can't take actions on their own.</strong> An LLM can describe how to check an order status; it cannot actually call your order API. This is the reason tools exist.</li>
+        <li><strong>They are non-deterministic and occasionally wrong.</strong> The same prompt can produce different outputs, and a confident-sounding answer isn't necessarily a correct one. This is the reason structured output, validation, and observability matter.</li>
+      </ul>
+
+      <p>Hold onto those four points. Every major piece of LangChain we'll cover in this series exists to address one of them.</p>
+
+      <h2 id="sec-2">Why a raw model doesn't behave like an assistant on its own</h2>
+
+      <p>That next-token mechanism explains generation, but it doesn't yet explain why typing a question into Claude or ChatGPT gets you a helpful, on-topic answer instead of the model just rambling onward in whatever direction the text statistically continues. That's not a free property of next-token prediction. It's the result of a second, separate stage of training layered on top of it.</p>
+
+      <p>The first stage, pretraining, is exactly the mechanism above: feed the model an enormous amount of ordinary text, books, articles, code, forum posts, and have it learn to predict the next token, over and over, across trillions of tokens. Nothing about this stage tells the model what a question or an instruction is supposed to receive in return, it has only learned what tends to follow what. Ask a purely pretrained model to finish the sentence "Dear Hiring Manager," and it won't stop to consider whether you wanted a complete cover letter or just wanted to see what one typically opens with, it'll simply keep generating the most statistically likely continuation, because continuing text plausibly is the only thing this stage ever trained it to do.</p>
+
+      <p>Getting from that to something that reliably follows instructions takes a second stage, usually called instruction tuning: continuing to train the same model, now specifically on curated examples pairing an instruction with the response a helpful assistant should give. The major labs, Anthropic, OpenAI, Google DeepMind, all also add a further alignment pass on top of that, commonly involving human feedback about which of several candidate responses people actually prefer, pushing the model toward answers that are useful and appropriately careful, not merely fluent. By the time you're calling a model like <code>claude-sonnet-5</code> or <code>gpt-5.5</code>, both stages have already happened behind the API. Worth knowing they're separate, though, since it explains something that matters throughout this series: a model's raw language ability and its tendency to actually follow your specific instructions were shaped by two different training phases, which is part of why prompt structure (Article 6 onward) genuinely changes behavior instead of being a cosmetic nicety.</p>
+
+      <div class="figure">
+        <svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="20" width="220" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="130" y="42" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#1A1F2B">Books, articles, code,</text>
+          <text x="130" y="58" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#1A1F2B">forum posts, trillions of tokens</text>
+
+          <path d="M240 45 L276 45" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowP1)"/>
+
+          <rect x="280" y="20" width="160" height="50" rx="8" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+          <text x="360" y="40" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#3D4FE0">Pretraining</text>
+          <text x="360" y="56" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70">learn "what follows what"</text>
+
+          <path d="M440 45 L476 45" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowP1)"/>
+
+          <rect x="480" y="20" width="140" height="50" rx="8" fill="#ffffff" stroke="#A8712E" stroke-width="1.5"/>
+          <text x="550" y="42" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#A8712E">a fluent</text>
+          <text x="550" y="58" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#A8712E">text-completer</text>
+
+          <text x="550" y="90" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">not yet an assistant</text>
+
+          <path d="M550 100 L550 122" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowP1)"/>
+
+          <rect x="20" y="123" width="260" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="150" y="145" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#1A1F2B">Curated instruction → response pairs,</text>
+          <text x="150" y="161" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#1A1F2B">plus human feedback on preferred answers</text>
+
+          <path d="M280 148 L316 148" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowP1)"/>
+
+          <rect x="320" y="123" width="160" height="50" rx="8" fill="#1E8A72" fill-opacity="0.12" stroke="#1E8A72" stroke-width="1.5"/>
+          <text x="400" y="143" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#1E8A72">Instruction tuning</text>
+          <text x="400" y="159" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70">+ alignment</text>
+
+          <path d="M480 148 L516 148" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowP1)"/>
+
+          <rect x="520" y="123" width="100" height="50" rx="8" fill="#ffffff" stroke="#1E8A72" stroke-width="2"/>
+          <text x="570" y="152" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#1E8A72">claude-sonnet-5</text>
+
+          <text x="320" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#565F70" font-style="italic">by the time you call the API, both stages already happened</text>
+
+          <defs>
+            <marker id="arrowP1" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+            </marker>
+          </defs>
+        </svg>
+        <div class="figure-caption">Fig. 2 — Two separate training stages, not one. The first teaches the model language and facts; the second teaches it to actually behave like an assistant.</div>
+      </div>
+
+      <p>This same picture gives the fourth property from above, occasionally wrong, an actual mechanism instead of just a label. Pretraining never included any signal for what's true versus merely plausible-sounding text, the model only ever learned what tends to follow what. Confident, fluent text is simply what most human-written text looks like, accurate or not, so that's the style the model learned to produce regardless of whether a specific claim inside it happens to hold up. That's the real mechanism behind what gets called hallucination: not the model lying or guessing the way a person would, but generating something statistically plausible with no built-in way to check the plausible thing against the true thing. It's also exactly why handing a model the relevant facts directly in its prompt (Article 9 onward, once retrieval enters the series) works far more reliably than hoping it recalls those facts correctly from training: text sitting in the context window is something the model can directly read, while whatever it "knows" from training is a statistical residue it's reconstructing on the fly, and reconstruction is precisely where hallucination creeps in.</p>
+
+      <h2 id="sec-3">Why "just call the API" stops working quickly</h2>
+
+      <p>Calling an LLM provider's API directly is genuinely simple: send some text, get some text back. For a single question-answer interaction, you don't need a framework at all. A few lines with the provider's own SDK will do.</p>
+
+      <p>The trouble starts as soon as you try to build something that resembles a real application instead of a demo. A few examples of what that looks like in practice:</p>
+
+      <ul>
+        <li>You want the model to answer questions using your company's documentation, not just its training data. Now you need to load documents, split them into chunks, turn them into a searchable form, retrieve the relevant ones, and stuff them into the prompt on every single question.</li>
+        <li>You want a chatbot that remembers what the user said three messages ago. Now you need to store, trim, and re-inject conversation history on every call, without silently blowing past the model's context limit.</li>
+        <li>You want the model's output to reliably be a JSON object your backend can parse, not "Sure! Here's the JSON you asked for:" followed by three backticks and some prose. Now you need parsing, validation, and retry logic.</li>
+        <li>You want the assistant to actually check an order status or send an email, not just describe how you'd do it. Now you need to define callable tools, get the model to request the right one with the right arguments, execute it, and feed the result back in.</li>
+        <li>You want to swap from one model provider to another (for cost, latency, or reliability) without rewriting your application logic. Now you need an abstraction layer that isn't tied to one provider's SDK shape.</li>
+        <li>You want to actually know why a chain of five LLM calls produced a bad answer on step three. Now you need tracing.</li>
+      </ul>
+
+      <p>None of these problems is hard in isolation. What's hard is that real applications need several of them at once, glued together reliably, and that glue code is almost identical from one project to the next. That repetition (prompt formatting, chaining calls, retrieval, memory, tool-calling, parsing, provider-switching) is precisely the shared plumbing that LangChain provides as reusable, composable building blocks, so you write your application's actual logic instead of reinventing this scaffolding every time.</p>
+
+      <h2 id="sec-4">What LangChain is</h2>
+
+      <p>LangChain is an open-source framework, originally created by Harrison Chase in late 2022, for building applications on top of LLMs. It reached a stable 1.0 release in October 2025, after several years of rapid, and at times messy, iteration as the field itself was still figuring out what "building with LLMs" should even look like.</p>
+
+      <p>As of 2026, the LangChain ecosystem is really a small family of related projects rather than one monolithic library, and it's worth knowing the pieces apart:</p>
+
+      <ul>
+        <li><strong><code>langchain-core</code></strong>: the foundational abstractions, including the <code>Runnable</code> interface, prompt templates, message types, and output parsers. Everything else builds on this.</li>
+        <li><strong><code>langchain</code></strong>: the main package with higher-level components, like retrievers and agent construction, that combine core abstractions into useful patterns.</li>
+        <li><strong>Provider integration packages</strong> (<code>langchain-openai</code>, <code>langchain-anthropic</code>, and dozens more): thin, standardized wrappers around each model provider's actual API, so your code talks to one consistent interface regardless of which provider is underneath.</li>
+        <li><strong>LangGraph</strong>: a separate framework, built on the same core abstractions, for orchestrating stateful, multi-step, and cyclical workflows that a linear chain can't express. Modern LangChain agents are built on top of LangGraph's runtime, even when you're using LangChain's higher-level agent API.</li>
+        <li><strong>LangSmith</strong>: a hosted observability and evaluation product for tracing, debugging, and testing anything built with LangChain or LangGraph.</li>
+      </ul>
+
+      <div class="figure">
+        <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="180" width="600" height="90" rx="10" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+          <text x="320" y="212" text-anchor="middle" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#3D4FE0">langchain-core</text>
+          <text x="320" y="234" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70">Runnable interface · prompt templates · message types · output parsers</text>
+          <text x="320" y="254" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70" font-style="italic">the foundation everything else builds on</text>
+
+          <line x1="120" y1="180" x2="120" y2="128" stroke="#B9B6AB" stroke-width="1.5"/>
+          <line x1="320" y1="180" x2="320" y2="128" stroke="#B9B6AB" stroke-width="1.5"/>
+          <line x1="520" y1="180" x2="520" y2="128" stroke="#B9B6AB" stroke-width="1.5"/>
+
+          <rect x="30" y="60" width="180" height="68" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="120" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">langchain</text>
+          <text x="120" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">retrievers,</text>
+          <text x="120" y="120" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">agent construction</text>
+
+          <rect x="230" y="60" width="180" height="68" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="320" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">Provider packages</text>
+          <text x="320" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">langchain-openai,</text>
+          <text x="320" y="120" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">langchain-anthropic...</text>
+
+          <rect x="430" y="60" width="180" height="68" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="520" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">LangGraph</text>
+          <text x="520" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">stateful, cyclical</text>
+          <text x="520" y="120" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#565F70">agent workflows</text>
+
+          <rect x="10" y="18" width="620" height="252" rx="12" fill="none" stroke="#A8712E" stroke-width="1.5" stroke-dasharray="5,4"/>
+          <text x="320" y="38" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#A8712E">LangSmith — tracing &amp; observability across all of it</text>
+        </svg>
+        <div class="figure-caption">Fig. 3 — The LangChain ecosystem: langchain-core is the shared foundation; langchain, provider packages, and LangGraph build on it; LangSmith observes everything.</div>
+      </div>
+
+      <p>This series focuses on <code>langchain-core</code> and <code>langchain</code>, the orchestration and application-building layer. We'll touch LangGraph only implicitly, in the article on agents, since LangChain's current agent-building API runs on it under the hood. We'll touch LangSmith briefly too, because tracing is genuinely useful the moment your chains have more than one step. But going deep on LangGraph itself is a different, follow-on series. Building complex branching and multi-agent workflows is a large enough topic that it deserves its own space, not a rushed final chapter here.</p>
+
+      <h2 id="sec-5">Where LangChain sits in the stack</h2>
+
+      <p>It helps to picture three layers:</p>
+
+      <div class="figure">
+        <svg viewBox="0 0 640 280" xmlns="http://www.w3.org/2000/svg">
+          <rect x="80" y="20" width="480" height="66" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="320" y="48" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#1A1F2B">Application layer</text>
+          <text x="320" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#565F70">Support chatbot · Docs Q&amp;A · Coding assistant</text>
+
+          <path d="M320 86 L320 106" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <rect x="50" y="107" width="540" height="70" rx="8" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+          <text x="320" y="136" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#3D4FE0">Orchestration layer — LangChain</text>
+          <text x="320" y="157" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#565F70">Prompts · Chains · Retrieval · Memory · Tools · Parsing</text>
+
+          <path d="M320 177 L320 197" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+          <rect x="80" y="198" width="480" height="66" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+          <text x="320" y="226" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#1A1F2B">Model layer</text>
+          <text x="320" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#565F70">OpenAI · Anthropic · Open-source models</text>
+
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+            </marker>
+          </defs>
+        </svg>
+        <div class="figure-caption">Fig. 4 — LangChain sits between the raw model and your application, handling the orchestration in between.</div>
+      </div>
+
+      <ol>
+        <li><strong>The model layer</strong>: the LLM providers themselves (OpenAI, Anthropic, open-source models via Ollama, and so on). This layer is just "text in, text out" (or increasingly, "text and tool-calls out").</li>
+        <li><strong>The orchestration layer</strong>: this is where LangChain lives. It doesn't replace the model; it sits above it, handling prompt construction, chaining multiple calls together, retrieval, memory, tool invocation, and structured parsing, all through a consistent interface regardless of which model is underneath.</li>
+        <li><strong>The application layer</strong>: the actual product you're building, like a support chatbot, a document Q&amp;A tool, or a coding assistant. This is what your users see, and it's built out of the orchestration layer's pieces.</li>
+      </ol>
+
+      <div class="callout">
+        <strong>The honest, non-hype take:</strong> LangChain in 2026 is plumbing, not magic. It won't make a weak prompt smart or a bad retrieval strategy work. What it does is remove the repetitive scaffolding (the parsing, the chaining, the provider-specific quirks) so that the code you write is about your application's actual logic rather than boilerplate. For a single one-off script that calls a model once, you may not need it at all. For anything with multiple steps, external data, conversation state, or tool use, it earns its place quickly.
+      </div>
+
+      <h2 id="sec-6">Why we're not installing LangChain yet</h2>
+
+      <p>It would be easy to go straight from "here's what LangChain is" into installing it and never look back. That's a disservice, for one specific reason: the value of a framework only becomes obvious once you've felt the problem it solves with your own hands. If the very first LLM code you ever write is already wrapped in LangChain's abstractions, you become fluent in LangChain's opinions about how to structure things without ever knowing what those opinions replaced. That becomes a real problem the moment something breaks and the framework is standing between you and the actual API response.</p>
+
+      <p>So the next three articles stay entirely below the framework line. We'll call the OpenAI and Anthropic APIs directly, feel exactly how much repetitive glue code piles up the moment you try to support more than one provider, and spend a full article on the generation parameters (temperature, top-p, and the rest) that every framework eventually just passes through to the underlying API anyway. By the time LangChain shows up in Article 5, every abstraction it introduces will be answering a problem you've already run into yourself, rather than one you're taking on faith.</p>
+
+      <h2 id="sec-7">What this series will actually build</h2>
+
+      <p>From Article 5 onward, once LangChain enters the picture, everything builds toward one continuous project: an AI assistant for a fictional SaaS product's documentation and support. Across the series, that one assistant will grow from a plain single-turn chatbot into something that remembers conversations, answers questions by retrieving real documentation, calls tools to check things like order status, and finally acts as a proper agent that decides for itself when to search docs versus when to use a tool.</p>
+
+      <p>The roadmap:</p>
+
+      <ol class="roadmap">
+        <li class="current">Generative AI basics and where LangChain fits <em>(this article)</em></li>
+        <li>Your first LLM calls: OpenAI and Anthropic, no framework yet</li>
+        <li>The multi-provider landscape — Gemini, other providers, and a unified interface</li>
+        <li>Tuning generation — temperature, top-p, and the other parameters</li>
+        <li>Setup, and talking to models through LangChain's unified interface</li>
+        <li>Prompt templates and structured output</li>
+        <li>LCEL — the pipe-operator pattern used to compose everything</li>
+        <li>Conversation memory</li>
+        <li>Document loaders and text splitting</li>
+        <li>Embeddings and vector stores</li>
+        <li>Retrievers and a full RAG pipeline</li>
+        <li>Tools and tool calling</li>
+        <li>Agents, built with <code>create_agent</code></li>
+        <li>Observability with LangSmith</li>
+        <li>Capstone — the whole assistant, end to end</li>
+      </ol>
+
+      <p class="closing">Next up: making your first raw API calls to OpenAI and Anthropic directly. No framework yet, just the SDKs and the message format that's become the industry standard.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card next" href="article-02-openai-anthropic-raw-sdks.html">
+          <span class="pager-label">Next · Article 2 &rarr;</span>
+          <span class="pager-title">Your first LLM calls: OpenAI and Anthropic, no framework yet</span>
+        </a>
+      </nav>
+
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('h2[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) {
+      ticking = true;
+      window.requestAnimationFrame(update);
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embeddings and vector stores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+thead th code { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 10 / 15 · ~10 min read</span>
+    </div>
+    <h1>Embeddings and vector stores</h1>
+    <p class="dek">Where Article 9's chunks become searchable by meaning: embeddings that turn text into vectors, a vector store that finds the nearest ones, and a distance gotcha that silently returns the wrong answer.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#what-an-embedding-actually-is">What an embedding is</a><a class="toc-main" href="#langchain-s-embeddings-interface">LangChain's Embeddings interface</a><a class="toc-main" href="#building-intuition-with-real-numbers">Intuition with real numbers</a><a class="toc-main" href="#vector-stores-why-you-need-one">Vector stores</a><a class="toc-main" href="#a-real-gotcha-found-by-actually-running-this">A real gotcha</a><a class="toc-main" href="#persistence-and-other-stores-worth-knowing-exist">Persistence and other stores</a><a class="toc-main" href="#what-s-next">What's next</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:66.7%"></div></div>
+        <div class="mini-progress-text">Article 10 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>Article 9 ended with Tidewave's documentation loaded and split into chunks, and with an honest limitation: those chunks are just shorter strings. Nothing about them yet says what they're <em>about</em>, so there's no way to ask "which chunk answers this question?" This article is where they become searchable by meaning, in two steps: embeddings turn each chunk into numbers, and a vector store finds the nearest ones fast.</p>
+<h2 id="what-an-embedding-actually-is">What an embedding actually is</h2>
+<p>An embedding model turns text into a vector, a list of numbers, positioned in space such that text with similar meaning ends up at nearby points and text with different meaning ends up far apart. That's the entire idea. "Refund policy" and "how do I get my money back" land close together despite sharing almost no words, because an embedding model captures meaning, not vocabulary. This is what makes "search by meaning" possible at all, and it's the piece that turns Article 9's chunks into something a retriever can actually work with.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg">
+    <line x1="40" y1="220" x2="600" y2="220" stroke="#E6E4DD" stroke-width="1.5"/>
+    <line x1="40" y1="220" x2="40" y2="20" stroke="#E6E4DD" stroke-width="1.5"/>
+
+    <circle cx="420" cy="90" r="6" fill="#3D4FE0"/>
+    <text x="420" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#3D4FE0">"Tidewave offers three plans..."</text>
+
+    <circle cx="440" cy="110" r="6" fill="#3D4FE0"/>
+    <text x="490" y="130" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#3D4FE0">"The Team plan is billed..."</text>
+
+    <circle cx="130" cy="170" r="6" fill="#A8712E"/>
+    <text x="150" y="192" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#A8712E">"Connect Slack to get..."</text>
+
+    <path d="M420 90 L440 110" stroke="#3D4FE0" stroke-width="1.5" stroke-dasharray="3,3"/>
+    <text x="455" y="95" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#3D4FE0" font-style="italic">close</text>
+
+    <path d="M420 90 L130 170" stroke="#B9B6AB" stroke-width="1.5" stroke-dasharray="3,3"/>
+    <text x="270" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#565F70" font-style="italic">far apart</text>
+
+    <text x="320" y="245" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70" font-style="italic">position in vector space, not shared words, is what "similar" means here</text>
+  </svg>
+  <div class="figure-caption">Fig. 1 — Two billing-related sentences land near each other; an unrelated sentence lands far away, regardless of exact wording.</div>
+</div>
+<h2 id="langchain-s-embeddings-interface">LangChain's <code>Embeddings</code> interface</h2>
+<p>Same pattern as <code>BaseChatModel</code> from Article 5: one shared interface, <code>embed_documents</code> for a batch of texts and <code>embed_query</code> for a single one, implemented independently by each provider's integration package.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIEmbeddings</span>
+
+<span class="n">embeddings</span> <span class="o">=</span> <span class="n">OpenAIEmbeddings</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;text-embedding-3-small&quot;</span><span class="p">)</span>
+<span class="n">vector</span> <span class="o">=</span> <span class="n">embeddings</span><span class="o">.</span><span class="n">embed_query</span><span class="p">(</span><span class="s2">&quot;What plans does Tidewave offer?&quot;</span><span class="p">)</span></code></pre></div>
+<p><code>text-embedding-3-small</code> here is one of OpenAI's two current embedding models, which its documentation still calls its newest and most performant, 1536 dimensions by default (its bigger sibling, <code>text-embedding-3-large</code>, produces 3072). Worth a specific warning: if you construct <code>OpenAIEmbeddings()</code> with no <code>model</code> argument at all, the class falls back to <code>text-embedding-ada-002</code>, an older model OpenAI has since surpassed on quality and price. That's a different kind of construction-time trap than <code>ChatOpenAI</code>'s silently-ignored temperature from Article 5, there the value you pass gets dropped; here the value you don't pass gets a stale one, but the lesson is the same either way: a plausible-looking default constructor call doesn't always do what you'd assume, so always pass <code>model</code> explicitly.</p>
+<p>Gemini follows the identical shape:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_google_genai</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleGenerativeAIEmbeddings</span>
+
+<span class="n">embeddings</span> <span class="o">=</span> <span class="n">GoogleGenerativeAIEmbeddings</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gemini-embedding-001&quot;</span><span class="p">)</span></code></pre></div>
+<p>Google now has a newer model too, <code>gemini-embedding-2</code>, which is multimodal (it can embed images and other media, not just text) and takes task instructions inside the input text rather than through a <code>task_type</code> parameter. This series uses the text-only <code>gemini-embedding-001</code>, still fully available, because LangChain's <code>GoogleGenerativeAIEmbeddings</code> sets <code>task_type</code> for you automatically, <code>RETRIEVAL_DOCUMENT</code> when embedding chunks and <code>RETRIEVAL_QUERY</code> when embedding a question, which is exactly the style <code>gemini-embedding-001</code> expects.</p>
+<p>One asymmetry worth knowing before you design anything around it: <strong>Anthropic doesn't offer an embeddings model at all.</strong> Its documentation says so directly, there's no <code>AnthropicEmbeddings</code> class, no embeddings endpoint on its API, nothing to import. What Anthropic's docs do is point you at a third party, Voyage AI (currently its <code>voyage-4</code> family), which has its own LangChain package, <code>langchain-voyageai</code>. Tidewave's <code>get_model()</code> helper from Article 5 defaults to Claude for chat, and that default keeps working fine everywhere in this series that calls <code>get_model()</code>. But the embeddings step specifically has to come from a different provider, OpenAI, Gemini, or Voyage; there's no Claude option on this particular piece, and no amount of provider-agnostic code design changes that fact.</p>
+<h2 id="building-intuition-with-real-numbers">Building intuition with real numbers</h2>
+<p>Actually calling an embeddings API needs a key and a network request, same limitation as every model call in this series. But the core idea, similar meaning produces closer vectors, is worth seeing with real, computed numbers rather than taken on faith. Here's a deliberately tiny stand-in, clearly not a real embedding model, just counting shared vocabulary words to illustrate the geometry:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">re</span><span class="o">,</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">Counter</span>
+
+<span class="n">VOCAB</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="s2">&quot;bill&quot;</span><span class="p">,</span> <span class="s2">&quot;refund&quot;</span><span class="p">,</span> <span class="s2">&quot;team&quot;</span><span class="p">,</span> <span class="s2">&quot;enterprise&quot;</span><span class="p">,</span> <span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="s2">&quot;slack&quot;</span><span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">toy_vectorize</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+    <span class="c1"># crude plural stripping so &quot;plans&quot;/&quot;refunds&quot; still hit the singular</span>
+    <span class="c1"># vocab entries; a real embedding model needs nothing like this</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">w</span>
+             <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[a-z]+&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">())]</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">words</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">VOCAB</span><span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">cosine_similarity</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="n">dot</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span>
+    <span class="n">norm_a</span><span class="p">,</span> <span class="n">norm_b</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">a</span><span class="p">)),</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">y</span> <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">b</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">dot</span> <span class="o">/</span> <span class="p">(</span><span class="n">norm_a</span> <span class="o">*</span> <span class="n">norm_b</span><span class="p">)</span> <span class="k">if</span> <span class="n">norm_a</span> <span class="ow">and</span> <span class="n">norm_b</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+<span class="n">v1</span> <span class="o">=</span> <span class="n">toy_vectorize</span><span class="p">(</span><span class="s2">&quot;Tidewave offers three plans: Starter, Team, and Enterprise.&quot;</span><span class="p">)</span>
+<span class="n">v2</span> <span class="o">=</span> <span class="n">toy_vectorize</span><span class="p">(</span><span class="s2">&quot;The Team plan is billed per seat with custom Enterprise pricing.&quot;</span><span class="p">)</span>
+<span class="n">v3</span> <span class="o">=</span> <span class="n">toy_vectorize</span><span class="p">(</span><span class="s2">&quot;Connect Slack to get project notifications posted to a channel.&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">cosine_similarity</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cosine_similarity</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v3</span><span class="p">))</span></code></pre></div>
+<p>Genuine, computed output:</p>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>1.0000000000000002
+0.0</code></pre></div>
+<p>That first number is 1 plus a floating-point rounding error (three divided by the square root of three, squared), so read it as exactly 1.0. Both plan-and-pricing sentences hit exactly the same three vocabulary buckets, <code>plan</code>, <code>team</code>, <code>enterprise</code>, so this tiny model scores them as identical in direction, a perfect 1.0, even though the wording is quite different. The Slack sentence shares none of those buckets and scores a flat 0.0. That perfect 1.0 is itself worth noticing: it's a symptom of how coarse a seven-word bag-of-words vocabulary really is, two sentences don't have to mean the same thing to hit the same buckets, they just both need to mention a plan, a team, and Enterprise. A real embedding model works in thousands of dimensions learned from actual language patterns rather than a hand-picked word list, which is exactly why it doesn't saturate at a perfect score nearly as easily, and why it catches similarity between sentences that share no vocabulary at all. The geometric idea carries over regardless: similarity as a number between -1 and 1, closer meaning as a higher score.</p>
+<h2 id="vector-stores-why-you-need-one">Vector stores: why you need one</h2>
+<p>A handful of vectors, you could compare by hand. Tidewave's actual documentation, dozens or hundreds of chunks, real production content, thousands, needs something built to do that comparison fast at scale. That's what a vector store is: storage for vectors, plus an index that finds the closest ones to a query vector without checking every single one individually.</p>
+<p><strong>Chroma</strong> is a solid default for this series: it runs in-process, no separate server or account needed, which makes it genuinely easy to actually run the examples below yourself.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_chroma</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chroma</span>
+
+<span class="n">vectorstore</span> <span class="o">=</span> <span class="n">Chroma</span><span class="o">.</span><span class="n">from_documents</span><span class="p">(</span>
+    <span class="n">documents</span><span class="o">=</span><span class="n">chunks</span><span class="p">,</span>
+    <span class="n">embedding</span><span class="o">=</span><span class="n">embeddings</span><span class="p">,</span>
+    <span class="n">collection_name</span><span class="o">=</span><span class="s2">&quot;tidewave_docs&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">vectorstore</span><span class="o">.</span><span class="n">similarity_search</span><span class="p">(</span><span class="s2">&quot;How do refunds work?&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span></code></pre></div>
+<p><code>chunks</code> here is exactly what Article 9 produced, running <code>RecursiveCharacterTextSplitter</code> over Tidewave's docs. <code>Chroma.from_documents</code> embeds every chunk and stores the resulting vectors; <code>similarity_search</code> embeds the query the same way and returns the <code>k</code> closest chunks.</p>
+<p>Give the collection a name, as <code>collection_name</code> does here, even for throwaway experiments. Leave it out and Chroma uses a collection called <code>"langchain"</code>, and within one Python process every unnamed <code>from_documents</code> call adds to that same collection rather than starting fresh. Run the cell twice in a notebook and every chunk is stored twice, so duplicates start showing up in your results; switch to a different embedding model in the same session and the next call fails outright with <code>Collection expecting embedding with dimension of 1536, got 7</code>, because the collection still holds the first model's vectors.</p>
+<h2 id="a-real-gotcha-found-by-actually-running-this">A real gotcha, found by actually running this</h2>
+<p>Building this article's examples surfaced something concrete enough to walk through directly, because it's the kind of thing that silently produces wrong results if you don't know to check for it. To run the toy vectorizer through Chroma, it needs wrapping in LangChain's <code>Embeddings</code> interface, which takes just two methods:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.embeddings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Embeddings</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ToyEmbeddings</span><span class="p">(</span><span class="n">Embeddings</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">embed_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">texts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">toy_vectorize</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">texts</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">embed_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">toy_vectorize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+<span class="n">vectorstore</span> <span class="o">=</span> <span class="n">Chroma</span><span class="o">.</span><span class="n">from_documents</span><span class="p">(</span>
+    <span class="n">documents</span><span class="o">=</span><span class="n">chunks</span><span class="p">,</span> <span class="n">embedding</span><span class="o">=</span><span class="n">ToyEmbeddings</span><span class="p">(),</span> <span class="n">collection_name</span><span class="o">=</span><span class="s2">&quot;toy_l2&quot;</span>
+<span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">vectorstore</span><span class="o">.</span><span class="n">similarity_search</span><span class="p">(</span><span class="s2">&quot;How do refunds work?&quot;</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code></pre></div>
+<p>Querying "How do refunds work?" against Tidewave's real docs this way returned a chunk about GitHub integration as the top result. Not the refunds section. GitHub.</p>
+<p>The cause: Chroma's default search uses Euclidean (L2) distance, not cosine similarity, and Euclidean distance is sensitive to vector magnitude in a way cosine similarity isn't. The query vector for "How do refunds work?" is small, a single 1 in the <code>refund</code> slot. The correct "Refunds" chunk mentions refunds four times, so its vector is a 4 in that same slot: exactly the right direction, but at distance 3.0 from the query. The GitHub chunk never mentions refunds at all; it just has a few small counts in other slots, which leaves it at distance 2.65, closer. Push that to the extreme and the problem is plain: a chunk matching none of the vocabulary is an all-zero vector, sitting at distance 1 from the query, nearer than the chunk that's entirely about refunds. That isn't bad luck, it's systematic: under Euclidean distance, anything small, near the origin, can beat a large vector pointing the right way. Direction was right, distance was wrong.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg">
+    <text x="320" y="22" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#1A1F2B">Query: "How do refunds work?" &#8594; vector [refund: 1]</text>
+
+    <rect x="30" y="45" width="270" height="70" rx="8" fill="#1E8A72" fill-opacity="0.08" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="165" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#1E8A72">"Refunds" chunk</text>
+    <text x="165" y="86" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">[refund: 4] — large magnitude</text>
+    <text x="165" y="102" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70">correct answer, but numerically far</text>
+
+    <rect x="340" y="45" width="270" height="70" rx="8" fill="#A8712E" fill-opacity="0.08" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="475" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#A8712E">"GitHub" chunk</text>
+    <text x="475" y="86" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#565F70">[refund: 0, ...small values]</text>
+    <text x="475" y="102" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70">irrelevant, but numerically close</text>
+
+    <text x="165" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1A1F2B" font-weight="700">Euclidean distance: 3.0</text>
+    <text x="475" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1A1F2B" font-weight="700">Euclidean distance: 2.65</text>
+    <text x="320" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#A8712E" font-style="italic">raw distance picks GitHub — the wrong one</text>
+
+    <text x="320" y="196" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1E8A72" font-weight="700">after L2-normalizing every vector to length 1:</text>
+    <text x="320" y="216" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#1E8A72" font-style="italic">cosine similarity correctly ranks "Refunds" first</text>
+  </svg>
+  <div class="figure-caption">Fig. 2 — Real numbers from this article: unnormalized, raw distance favors the numerically smaller but irrelevant chunk.</div>
+</div>
+<p>The fix is normalizing every vector to length 1 before it goes anywhere near the vector store, one addition to the same <code>toy_vectorize</code> from before:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="k">def</span><span class="w"> </span><span class="nf">toy_vectorize</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">w</span>
+             <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[a-z]+&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">())]</span>
+    <span class="n">counts</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">words</span><span class="p">)</span>
+    <span class="n">vec</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">VOCAB</span><span class="p">]</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">vec</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span> <span class="o">/</span> <span class="n">norm</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">vec</span><span class="p">]</span> <span class="k">if</span> <span class="n">norm</span> <span class="k">else</span> <span class="n">vec</span></code></pre></div>
+<p>With that one change, rebuilding the store (under a fresh <code>collection_name</code>, say <code>"toy_normalized"</code>, for the reason given above) and running the exact same query against the exact same documents correctly returns the "Refunds" section first. Once every vector has length 1, Euclidean distance and cosine similarity always rank results in the same order, so magnitude can no longer mislead the search. The other fix is to tell Chroma to use cosine distance in the first place, one argument at construction:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">vectorstore</span> <span class="o">=</span> <span class="n">Chroma</span><span class="o">.</span><span class="n">from_documents</span><span class="p">(</span>
+    <span class="n">documents</span><span class="o">=</span><span class="n">chunks</span><span class="p">,</span>
+    <span class="n">embedding</span><span class="o">=</span><span class="n">ToyEmbeddings</span><span class="p">(),</span>
+    <span class="n">collection_name</span><span class="o">=</span><span class="s2">&quot;toy_cosine&quot;</span><span class="p">,</span>
+    <span class="n">collection_configuration</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hnsw&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;space&quot;</span><span class="p">:</span> <span class="s2">&quot;cosine&quot;</span><span class="p">}},</span>
+<span class="p">)</span></code></pre></div>
+<p>This is exactly why it's worth knowing, even though real embedding providers mostly handle it for you. OpenAI's documentation states that its embeddings are normalized to length 1, and that cosine similarity and Euclidean distance therefore give identical rankings. Gemini's <code>gemini-embedding-001</code> is normalized at its default 3,072 dimensions, but if you ask for fewer with <code>output_dimensionality</code> (768 or 1,536, say, to save storage), Google's documentation says you must normalize those vectors yourself. So you won't hit this with <code>OpenAIEmbeddings</code> or a default <code>GoogleGenerativeAIEmbeddings</code> in normal use. But if you shrink Gemini's dimensions, write a custom <code>Embeddings</code> class, cache vectors from somewhere else, or debug a vector store returning results that feel wrong despite everything looking correct, normalization, or the store's distance setting, is the first thing worth checking.</p>
+<h2 id="persistence-and-other-stores-worth-knowing-exist">Persistence, and other stores worth knowing exist</h2>
+<p>Everything above lives in memory and disappears when the process exits. Add <code>persist_directory</code> to write the collection to disk and reload it later without re-embedding everything from scratch:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="n">vectorstore</span> <span class="o">=</span> <span class="n">Chroma</span><span class="o">.</span><span class="n">from_documents</span><span class="p">(</span>
+    <span class="n">documents</span><span class="o">=</span><span class="n">chunks</span><span class="p">,</span>
+    <span class="n">embedding</span><span class="o">=</span><span class="n">embeddings</span><span class="p">,</span>
+    <span class="n">collection_name</span><span class="o">=</span><span class="s2">&quot;tidewave_docs&quot;</span><span class="p">,</span>
+    <span class="n">persist_directory</span><span class="o">=</span><span class="s2">&quot;./tidewave_chroma_db&quot;</span><span class="p">,</span>
+<span class="p">)</span></code></pre></div>
+<p>Chroma isn't the only option, worth knowing exist without a full detour here. <code>langchain-core</code> itself ships an <code>InMemoryVectorStore</code>, no extra package at all, handy for tests and tiny prototypes. <strong>FAISS</strong> is another common in-process choice, oriented more toward raw search speed than Chroma's broader feature set; it now has its own standalone package, <code>langchain-faiss</code>, so you don't need the sunset <code>langchain-community</code> from Article 9 to use it. <strong>Pinecone</strong> and similar hosted services, via <code>langchain-pinecone</code> and friends, trade the "no server needed" convenience for a managed, scalable backend once a project outgrows a single machine. The <code>Embeddings</code> and <code>VectorStore</code> interfaces are consistent enough across LangChain's integrations that switching between them later is a constructor change, not a rewrite, the same story as swapping chat model providers back in Article 5.</p>
+<h2 id="what-s-next">What's next</h2>
+<p class="closing">Everything is in place now: documents loaded, split, embedded, searchable. Next up: wrapping a vector store in LangChain's retriever interface and building the actual RAG chain, retrieval plus generation, that lets Tidewave's assistant answer a real question using its own documentation instead of only what the underlying model already knew.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-09-document-loaders-splitting.html">
+          <span class="pager-label">&larr; Previous · Article 9</span>
+          <span class="pager-title">Document loaders and text splitting</span>
+        </a>
+        <a class="pager-card next" href="article-11-retrievers-rag-pipeline.html">
+          <span class="pager-label">Next · Article 11 &rarr;</span>
+          <span class="pager-title">Retrievers and a full RAG pipeline</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>
