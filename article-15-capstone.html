@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capstone: the whole assistant, end to end</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #3D4FE0;
+  --accent-dim: rgba(61,79,224,0.08);
+  --amber: #A8712E;
+  --amber-dim: rgba(168,113,46,0.09);
+  --teal: #1E8A72;
+  --bg: #FDFDFB;
+  --surface: #ffffff;
+  --code-bg: #F7F6F2;
+  --text: #1A1F2B;
+  --text-dim: #565F70;
+  --border: #E6E4DD;
+  --shadow-sm: 0 1px 2px rgba(26,31,43,0.04), 0 1px 1px rgba(26,31,43,0.03);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--amber));
+  z-index: 100;
+}
+
+.masthead {
+  background:
+    radial-gradient(900px 420px at 12% -15%, var(--accent-dim), transparent 60%),
+    radial-gradient(700px 360px at 100% -10%, var(--amber-dim), transparent 55%),
+    var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 60px 24px 46px;
+}
+.masthead-inner { max-width: 760px; margin: 0 auto; }
+.masthead-top {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 30px;
+}
+.series-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(61,79,224,0.18);
+  border-radius: 999px; padding: 5px 14px 5px 6px;
+}
+.series-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+}
+.masthead-meta { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim); }
+h1 {
+  font-family: 'Inter', sans-serif; font-size: clamp(30px, 4.6vw, 44px); font-weight: 800;
+  line-height: 1.14; letter-spacing: -0.015em; margin: 0 0 18px; color: var(--text);
+}
+.dek {
+  font-family: 'Lora', serif; font-style: italic; font-size: 19px; line-height: 1.55;
+  color: var(--text-dim); max-width: 640px; margin: 0;
+}
+
+.wrap { max-width: 952px; margin: 0 auto; padding: 56px 24px 0; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.side-rail { position: sticky; top: 28px; align-self: start; }
+.side-rail-inner { border-left: 1px solid var(--border); padding-left: 20px; }
+.side-rail-label {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+}
+.toc { display: flex; flex-direction: column; gap: 9px; margin: 0 0 24px; }
+.toc a {
+  display: block; font-family: 'Inter', sans-serif; font-size: 13.5px; line-height: 1.4;
+  color: var(--text-dim); text-decoration: none;
+  border-left: 2px solid transparent; padding-left: 12px; margin-left: -14px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.toc a.toc-sub { font-size: 12.5px; padding-left: 24px; color: #7A8190; }
+.toc a:hover { color: var(--text); }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.side-rail-divider { height: 1px; background: var(--border); margin: 20px 0; }
+.mini-progress-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 8px; }
+.mini-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--amber)); border-radius: 3px; }
+.mini-progress-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+
+.prose { min-width: 0; padding-bottom: 90px; counter-reset: section; }
+.prose > p:first-of-type::first-letter {
+  font-family: 'Inter', sans-serif; font-weight: 800; font-size: 3.4em; line-height: 0.85;
+  float: left; margin: 0.03em 0.09em 0 0; color: var(--accent);
+}
+
+h2 {
+  counter-increment: section;
+  font-family: 'Inter', sans-serif; font-size: 23px; font-weight: 700;
+  margin: 56px 0 18px; color: var(--text); scroll-margin-top: 24px;
+}
+h2::before {
+  content: counter(section, decimal-leading-zero);
+  display: block; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500;
+  letter-spacing: 0.1em; color: var(--accent); opacity: 0.6; margin-bottom: 8px;
+}
+h3 {
+  font-family: 'Inter', sans-serif; font-size: 18.5px; font-weight: 700;
+  margin: 42px 0 14px; color: var(--text); scroll-margin-top: 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+h3::before {
+  content: ''; width: 14px; height: 2px; border-radius: 2px;
+  background: var(--amber); flex: 0 0 auto;
+}
+
+p { margin: 0 0 22px; }
+strong { font-weight: 600; color: var(--text); }
+em { color: var(--text-dim); }
+code {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84em;
+  background: var(--accent-dim); color: var(--accent);
+  padding: 0.12em 0.38em; border-radius: 4px; overflow-wrap: anywhere;
+}
+ul, ol { padding-left: 26px; margin: 0 0 22px; }
+li { margin-bottom: 10px; }
+
+/* Code blocks */
+.code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px;
+  margin: 8px 0 26px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 8px 18px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #FBFAF7, #F3F2EC);
+}
+.code-lang {
+  font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0.04em; color: var(--text-dim);
+}
+.copy-btn {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 10px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.copy-btn:hover { color: var(--accent); border-color: rgba(61,79,224,0.35); }
+.copy-btn.copied { color: var(--teal); border-color: rgba(30,138,114,0.4); }
+.code pre {
+  margin: 0; padding: 16px 20px 18px; overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.65;
+}
+.code pre code {
+  background: none; color: var(--text); padding: 0; border-radius: 0;
+  font-size: inherit; line-height: inherit;
+}
+.code .k, .code .kn, .code .kd, .code .kc, .code .kr, .code .ow { color: var(--accent); font-weight: 600; }
+.code .s, .code .s1, .code .s2, .code .sa, .code .sd, .code .se { color: var(--amber); }
+.code .c, .code .c1, .code .cm { color: #8A8F9C; font-style: italic; }
+.code .nb, .code .bp { color: var(--teal); }
+.code .mi, .code .m, .code .mf { color: #B0415A; }
+
+/* Line-by-line walkthroughs */
+.walkthrough {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 18px 24px 6px; margin: 0 0 30px; box-shadow: var(--shadow-sm);
+}
+.walkthrough p.wt-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 12px;
+}
+.walkthrough ul { padding-left: 20px; }
+.walkthrough li { font-size: 16.5px; line-height: 1.65; }
+
+/* Callout */
+.callout {
+  position: relative;
+  background: linear-gradient(135deg, var(--amber-dim), rgba(255,255,255,0));
+  border: 1px solid rgba(168,113,46,0.22); border-left: 4px solid var(--amber);
+  border-radius: 10px; padding: 24px 28px; margin: 40px 0; font-size: 17px; overflow: hidden;
+}
+.callout::before {
+  content: '\201C'; position: absolute; top: -18px; left: 16px;
+  font-family: 'Lora', serif; font-size: 84px; color: var(--amber); opacity: 0.16; line-height: 1;
+}
+.callout strong { color: var(--amber); }
+
+/* Warning / security notes */
+.note {
+  background: rgba(176,65,90,0.05); border: 1px solid rgba(176,65,90,0.2);
+  border-left: 4px solid #B0415A; border-radius: 10px;
+  padding: 18px 24px 4px; margin: 8px 0 30px; font-size: 17px;
+}
+.note p.note-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #B0415A; margin: 0 0 8px;
+}
+.note p { margin-bottom: 14px; }
+
+/* Comparison table */
+.table-wrap {
+  margin: 28px 0 30px; border: 1px solid var(--border); border-radius: 12px;
+  overflow-x: auto; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+thead th {
+  background: #F6F5F0; font-weight: 700; color: var(--text-dim); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: #FCFCFA; }
+td.row-label { font-weight: 600; color: var(--text); }
+thead th code { text-transform: none; letter-spacing: 0; font-size: 0.95em; }
+td code { font-size: 0.8em; overflow-wrap: anywhere; word-break: break-word; }
+table { table-layout: fixed; }
+th:first-child, td:first-child { width: 20%; }
+
+/* Wide (4+ column) tables break out into the right margin on large screens */
+.table-wrap.wide th:first-child, .table-wrap.wide td:first-child { width: 16%; }
+@media (min-width: 1280px) {
+  .table-wrap.wide { margin-right: -170px; }
+}
+
+/* Figures */
+.figure {
+  margin: 44px 0; text-align: center; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px 28px 22px; box-shadow: var(--shadow-sm);
+}
+.figure svg { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.5; color: var(--text-dim);
+  text-align: left; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border);
+}
+
+.closing {
+  margin-top: 8px; font-style: italic; color: var(--text-dim);
+}
+
+/* Previous / next */
+.pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.pager-card {
+  display: flex; flex-direction: column; gap: 6px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.pager-card:hover { border-color: rgba(61,79,224,0.4); transform: translateY(-1px); }
+.pager-card.next { text-align: right; }
+.pager-card.next:only-child { grid-column: 2; }
+.pager-label {
+  font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+}
+.pager-title { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); padding: 36px 24px; }
+.site-footer-inner {
+  max-width: 952px; margin: 0 auto; display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text-dim);
+}
+.footer-mark { font-weight: 600; color: var(--text); }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side-rail { display: none; }
+  .prose { max-width: 680px; width: 100%; margin: 0 auto; }
+}
+@media (max-width: 540px) {
+  .masthead { padding: 44px 20px 34px; }
+  .wrap { padding: 40px 20px 0; }
+  .prose > p:first-of-type::first-letter { font-size: 2.6em; }
+  .pager { grid-template-columns: 1fr; }
+  .pager-card.next:only-child { grid-column: 1; }
+  .code pre { font-size: 12.5px; }
+  table { table-layout: auto; min-width: 560px; }
+}
+
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-top">
+      <span class="series-badge"><span class="series-mark">LC</span>Learning LangChain</span>
+      <span class="masthead-meta">Article 15 / 15 · ~18 min read</span>
+    </div>
+    <h1>Capstone: the whole assistant, end to end</h1>
+    <p class="dek">Fourteen articles assembled into one committable project: seven small modules, a pytest suite that runs with no API keys, and the production pieces from Articles 13 and 14: call limits, summarized memory, a persistent index, tracing.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="layout">
+    <aside class="side-rail">
+      <div class="side-rail-inner">
+        <div class="side-rail-label">In this article</div>
+        <nav class="toc" aria-label="Table of contents">
+          <a class="toc-main" href="#what-s-being-assembled">What's being assembled</a><a class="toc-main" href="#models-py-article-5">models.py</a><a class="toc-main" href="#documents-py-article-9">documents.py</a><a class="toc-main" href="#knowledge-base-py-articles-9-10-and-11">knowledge_base.py</a><a class="toc-main" href="#tools-py-articles-7-11-and-12-meeting-for-the-first-time">tools.py</a><a class="toc-main" href="#triage-py-article-6">triage.py</a><a class="toc-main" href="#assistant-py-articles-13-and-14">assistant.py</a><a class="toc-main" href="#main-py-article-14-and-the-entry-point">main.py</a><a class="toc-main" href="#setup-files">Setup files</a><a class="toc-main" href="#running-it-for-real-the-test-suite">The test suite</a><a class="toc-main" href="#what-one-message-actually-costs">What a message costs</a><a class="toc-main" href="#what-this-deliberately-leaves-out">What it leaves out</a><a class="toc-main" href="#the-whole-arc-looking-back">Looking back</a>
+        </nav>
+        <div class="side-rail-divider"></div>
+        <div class="side-rail-label">Series progress</div>
+        <div class="mini-progress-track"><div class="mini-progress-fill" style="width:100.0%"></div></div>
+        <div class="mini-progress-text">Article 15 of 15</div>
+      </div>
+    </aside>
+
+    <article class="prose">
+<p>Fourteen articles, one piece at a time. This one assembles them into an actual project, not a bigger code snippet: a real file layout, the kind you'd commit, with a test suite that proves it works. Almost everything below is lifted from an earlier article or is a thin connector between two of them. The few additions are the pieces a project needs that a single article never did, like a way to swap in test doubles, and each one is called out where it appears.</p>
+<h2 id="what-s-being-assembled">What's being assembled</h2>
+<div class="code"><div class="code-head"><span class="code-lang">.env</span><button class="copy-btn" type="button">Copy</button></div><pre><code>tidewave_assistant/
+├── .env.example
+├── requirements.txt
+├── tidewave_docs/
+│   ├── getting-started.md
+│   ├── billing.md
+│   └── integrations.md
+├── models.py
+├── documents.py
+├── knowledge_base.py
+├── tools.py
+├── triage.py
+├── assistant.py
+├── main.py
+└── tests/
+    ├── conftest.py
+    ├── fakes.py
+    └── test_assistant.py</code></pre></div>
+<p>Seven small modules, plus a test suite. Each module is one article's job, done once, imported everywhere else it's needed instead of rewritten.</p>
+<div class="figure">
+  <svg viewBox="0 0 640 330" xmlns="http://www.w3.org/2000/svg">
+    <path d="M300 45 L316 45" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <path d="M85 70 L85 96" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <path d="M395 70 L395 96" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <path d="M130 70 L268 176" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <path d="M395 150 L352 176" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <path d="M470 45 L530 45 L530 205 L394 205" stroke="#B9B6AB" stroke-width="1.5" fill="none" stroke-dasharray="4 3" marker-end="url(#arrowC1)"/>
+    <path d="M315 230 L315 256" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <path d="M85 150 L85 285 L236 285" stroke="#B9B6AB" stroke-width="1.5" fill="none" marker-end="url(#arrowC1)"/>
+    <rect x="20" y="20" width="130" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="85.0" y="42" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#1A1F2B">models.py</text>
+    <text x="85.0" y="58" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Article 5</text>
+    <rect x="170" y="20" width="130" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="235.0" y="42" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#1A1F2B">documents.py</text>
+    <text x="235.0" y="58" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Article 9</text>
+    <rect x="320" y="20" width="150" height="50" rx="8" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="395.0" y="42" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#3D4FE0">knowledge_base.py</text>
+    <text x="395.0" y="58" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Articles 9, 10, 11</text>
+    <rect x="20" y="100" width="130" height="50" rx="8" fill="#8A5A9E" fill-opacity="0.10" stroke="#8A5A9E" stroke-width="1.5"/>
+    <text x="85.0" y="122" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#8A5A9E">triage.py</text>
+    <text x="85.0" y="138" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Article 6</text>
+    <rect x="320" y="100" width="150" height="50" rx="8" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="395.0" y="122" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#A8712E">tools.py</text>
+    <text x="395.0" y="138" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Articles 7, 11, 12</text>
+    <rect x="240" y="180" width="150" height="50" rx="8" fill="#1E8A72" fill-opacity="0.10" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="315.0" y="202" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#1E8A72">assistant.py</text>
+    <text x="315.0" y="218" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Articles 13, 14</text>
+    <rect x="240" y="260" width="150" height="50" rx="8" fill="#ffffff" stroke="#E6E4DD" stroke-width="2"/>
+    <text x="315.0" y="282" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#1A1F2B">main.py</text>
+    <text x="315.0" y="298" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70">Article 14 + entry point</text>
+    <text x="545" y="222" font-family="Inter, sans-serif" font-size="9.5" fill="#565F70" font-style="italic">build_retriever()</text>
+    <text x="545" y="290" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">every arrow is an</text>
+    <text x="545" y="305" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#565F70" font-style="italic">import, not a rewrite</text>
+    <defs>
+      <marker id="arrowC1" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 1. Seven modules, each one article's job, imported by whatever needs it next rather than rewritten. Triage and the agent only meet in main.py.</div>
+</div>
+<p>One design choice runs through all of them: every builder function takes its dependencies as optional arguments, a model, a retriever, an embedding model, and falls back to the real one when you don't pass anything. <code>main.py</code> passes nothing and gets Claude, OpenAI embeddings, and a real vector store. The tests pass stand-ins and get a run that needs no API key at all. It's the same <code>Runnable</code> interchangeability this whole series has leaned on since Article 5, used on purpose.</p>
+<h2 id="models-py-article-5"><code>models.py</code>: Article 5</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">init_chat_model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.language_models.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseChatModel</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_model</span><span class="p">(</span>
+    <span class="n">provider_and_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;anthropic:claude-sonnet-5&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseChatModel</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a configured chat model for Tidewave&#39;s assistant.</span>
+
+<span class="sd">    Accepts an init_chat_model-style &quot;provider:model-name&quot; string, so</span>
+<span class="sd">    swapping the underlying provider anywhere in the project later is a</span>
+<span class="sd">    one-argument change, not a rewrite. Any extra settings, such as</span>
+<span class="sd">    reasoning_effort=&quot;low&quot;, are passed straight through.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">init_chat_model</span><span class="p">(</span><span class="n">provider_and_model</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code></pre></div>
+<p>Exactly Article 5's helper, the version every article since has imported. Every other module gets its model through this one function rather than importing <code>ChatAnthropic</code> directly: swapping providers is a one-argument change here, not a search-and-replace across seven files. It deliberately sets no <code>temperature</code>, since <code>claude-sonnet-5</code> rejects any non-default sampling parameter with a 400 error (Article 4); anything a particular model does accept, such as <code>reasoning_effort="low"</code> for GPT-5.5, passes straight through <code>**kwargs</code>.</p>
+<h2 id="documents-py-article-9"><code>documents.py</code>: Article 9</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.documents</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_text_file</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Document</span><span class="p">:</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Document</span><span class="p">(</span><span class="n">page_content</span><span class="o">=</span><span class="n">text</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="n">path</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_directory</span><span class="p">(</span><span class="n">dir_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.md&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Document</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">load_text_file</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">))</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">dir_path</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">))]</span></code></pre></div>
+<p>Unchanged. Recall from Article 9 why this is plain Python rather than <code>langchain-community</code>'s <code>DirectoryLoader</code>: that package was sunset, and a <code>Document</code> is two fields, cheap enough to build by hand with no dependency on an archived package.</p>
+<h2 id="knowledge-base-py-articles-9-10-and-11"><code>knowledge_base.py</code>: Articles 9, 10, and 11</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_chroma</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chroma</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.documents</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.embeddings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Embeddings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.retrievers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseRetriever</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIEmbeddings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_text_splitters</span><span class="w"> </span><span class="kn">import</span> <span class="n">RecursiveCharacterTextSplitter</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">documents</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_directory</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_retriever</span><span class="p">(</span>
+    <span class="n">docs_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;tidewave_docs&quot;</span><span class="p">,</span>
+    <span class="n">embedding</span><span class="p">:</span> <span class="n">Embeddings</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">persist_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseRetriever</span><span class="p">:</span>
+    <span class="n">embedding</span> <span class="o">=</span> <span class="n">embedding</span> <span class="ow">or</span> <span class="n">OpenAIEmbeddings</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;text-embedding-3-small&quot;</span><span class="p">)</span>
+    <span class="n">vectorstore</span> <span class="o">=</span> <span class="n">Chroma</span><span class="p">(</span>
+        <span class="n">collection_name</span><span class="o">=</span><span class="s2">&quot;tidewave_docs&quot;</span><span class="p">,</span>
+        <span class="n">embedding_function</span><span class="o">=</span><span class="n">embedding</span><span class="p">,</span>
+        <span class="n">persist_directory</span><span class="o">=</span><span class="n">persist_directory</span><span class="p">,</span>
+        <span class="n">collection_configuration</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hnsw&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;space&quot;</span><span class="p">:</span> <span class="s2">&quot;cosine&quot;</span><span class="p">}},</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">vectorstore</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="mi">1</span><span class="p">)[</span><span class="s2">&quot;ids&quot;</span><span class="p">]:</span>  <span class="c1"># empty: first run, or in-memory</span>
+        <span class="n">docs</span> <span class="o">=</span> <span class="n">load_directory</span><span class="p">(</span><span class="n">docs_path</span><span class="p">)</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="n">RecursiveCharacterTextSplitter</span><span class="p">(</span>
+            <span class="n">chunk_size</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+            <span class="n">chunk_overlap</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">split_documents</span><span class="p">(</span><span class="n">docs</span><span class="p">)</span>
+        <span class="n">vectorstore</span><span class="o">.</span><span class="n">add_documents</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">vectorstore</span><span class="o">.</span><span class="n">as_retriever</span><span class="p">(</span><span class="n">search_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="n">k</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">format_docs</span><span class="p">(</span><span class="n">docs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Document</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">page_content</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">)</span></code></pre></div>
+<p>Load, split, embed, index, retrieve: Articles 9 through 11 in a few dozen lines, with each of those articles' lessons applied rather than re-learned:</p>
+<ul><li><strong>A named collection</strong> (Article 10), so repeated builds in one process don't pile duplicate chunks into Chroma's shared default collection.</li><li><strong>Cosine distance</strong> (Articles 10 and 11). OpenAI's vectors are normalized, so it ranks the same as Chroma's default Euclidean distance for them, but it also keeps the toy embeddings in the tests ranking correctly.</li><li><strong><code>k=3</code></strong> instead of Article 11's single-result demo, inside the two-to-five starting range Article 11 recommended, so a question that spans two sections of the docs can get both.</li><li><strong>Persistence</strong> (Article 10's <code>persist_directory</code>), with one addition: the store is only filled when it's empty. On first start every chunk gets embedded; on every start after that, the saved index is reused and nothing is re-embedded. Delete the folder after editing the docs to rebuild it.</li></ul>
+<p>This module still names <code>OpenAIEmbeddings</code> directly rather than going through <code>get_model()</code>, Article 10's asymmetry: Anthropic has no embeddings model, so this is the one place the project has to name a second provider. The <code>embedding</code> argument is what lets the tests swap in Article 10's toy vectorizer instead.</p>
+<h2 id="tools-py-articles-7-11-and-12-meeting-for-the-first-time"><code>tools.py</code>: Articles 7, 11, and 12, meeting for the first time</h2>
+<p>Every earlier article touching retrieval and every earlier article touching tools stayed in its own lane on purpose. Here's where they combine: retrieval itself becomes a tool, so the agent decides when to search the documentation, instead of a fixed pipeline that always does. This is the agentic RAG that Article 11 said this series would reach once tools and agents were in place.</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.retrievers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseRetriever</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseTool</span><span class="p">,</span> <span class="n">tool</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">knowledge_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">format_docs</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">make_search_docs</span><span class="p">(</span><span class="n">retriever</span><span class="p">:</span> <span class="n">BaseRetriever</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BaseTool</span><span class="p">:</span>
+    <span class="n">docs_chain</span> <span class="o">=</span> <span class="n">retriever</span> <span class="o">|</span> <span class="n">format_docs</span>
+
+    <span class="nd">@tool</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search_docs</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search Tidewave&#39;s documentation for information about features, plans, or policies.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">docs_chain</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">search_docs</span>
+
+
+<span class="nd">@tool</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">check_subscription_status</span><span class="p">(</span><span class="n">customer_email</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check a Tidewave customer&#39;s current subscription plan and billing status.&quot;&quot;&quot;</span>
+    <span class="n">fake_db</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;sam@example.com&quot;</span><span class="p">:</span> <span class="s2">&quot;Team plan, active, next billing date 2026-09-15&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;priya@example.com&quot;</span><span class="p">:</span> <span class="s2">&quot;Starter plan, active&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">fake_db</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">customer_email</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="s2">&quot;No account found for that email.&quot;</span><span class="p">)</span></code></pre></div>
+<p><code>retriever | format_docs</code> is Article 7's pipe operator doing what it always does, now building the body of a tool. <code>search_docs</code> wraps that chain in Article 12's <code>@tool</code> decorator, so what used to be a fixed first step in Article 11's RAG chain is something the model can choose to call or skip. It's built inside <code>make_search_docs</code> rather than at import time, so importing <code>tools.py</code> doesn't quietly build a vector store and spend embedding calls; whoever calls the function decides which retriever it searches. <code>check_subscription_status</code> is Article 12's tool with one line changed: it lower-cases and trims the email before the lookup, the normalization step Article 14 used to demonstrate <code>@traceable</code>, since a customer typing <code>Sam@Example.com</code> shouldn't get "No account found".</p>
+<h2 id="triage-py-article-6"><code>triage.py</code>: Article 6</h2>
+<p>Every module so far feeds the agent loop. This one runs alongside it, and it's the one place in the project where <code>ChatPromptTemplate</code> and <code>with_structured_output</code>, Article 6, show up directly rather than through <code>create_agent</code>'s internals:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.language_models.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseChatModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.prompts</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatPromptTemplate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.runnables</span><span class="w"> </span><span class="kn">import</span> <span class="n">Runnable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">models</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_model</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TicketClassification</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Structured classification of a Tidewave support message.&quot;&quot;&quot;</span>
+    <span class="n">category</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;billing&quot;</span><span class="p">,</span> <span class="s2">&quot;technical&quot;</span><span class="p">,</span> <span class="s2">&quot;feature_request&quot;</span><span class="p">,</span> <span class="s2">&quot;other&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The best-fit category for this support message&quot;</span>
+    <span class="p">)</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;low&quot;</span><span class="p">,</span> <span class="s2">&quot;medium&quot;</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;How urgently this message needs a response&quot;</span>
+    <span class="p">)</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;One-sentence summary of the issue&quot;</span><span class="p">)</span>
+
+
+<span class="n">classify_template</span> <span class="o">=</span> <span class="n">ChatPromptTemplate</span><span class="o">.</span><span class="n">from_messages</span><span class="p">([</span>
+    <span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;You classify incoming support messages for Tidewave.&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;human&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{message}</span><span class="s2">&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_triage</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">BaseChatModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Runnable</span><span class="p">:</span>
+    <span class="n">classifier</span> <span class="o">=</span> <span class="p">(</span><span class="n">model</span> <span class="ow">or</span> <span class="n">get_model</span><span class="p">())</span><span class="o">.</span><span class="n">with_structured_output</span><span class="p">(</span>
+        <span class="n">TicketClassification</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;json_schema&quot;</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">classify_template</span> <span class="o">|</span> <span class="n">classifier</span></code></pre></div>
+<p><code>TicketClassification</code> and the template are Article 6's, unchanged, composed with the same pipe operator as everything else. Two details matter. <code>method="json_schema"</code> is Article 6's fix: without it, <code>ChatAnthropic</code> implements structured output as a forced tool call, which Claude Opus 5.5 and Fable 5.1 reject outright, so this keeps triage working if the model is ever upgraded. And the chain is built by <code>build_triage</code> rather than at import time, for the same reason as <code>make_search_docs</code>: the model, and the network calls it implies, are the caller's choice. <code>main.py</code> runs triage first on every incoming message and flags anything high-priority for a human, before the agent handles the reply.</p>
+<h2 id="assistant-py-articles-13-and-14"><code>assistant.py</code>: Articles 13 and 14</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_agent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents.middleware</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelCallLimitMiddleware</span><span class="p">,</span> <span class="n">SummarizationMiddleware</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.language_models.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseChatModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.retrievers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseRetriever</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.checkpoint.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemorySaver</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">knowledge_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_retriever</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">models</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_model</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_subscription_status</span><span class="p">,</span> <span class="n">make_search_docs</span>
+
+<span class="n">SYSTEM_PROMPT</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;You are a helpful assistant for Tidewave. Use search_docs for &quot;</span>
+    <span class="s2">&quot;questions about features, plans, or policies. Use &quot;</span>
+    <span class="s2">&quot;check_subscription_status for questions about a specific &quot;</span>
+    <span class="s2">&quot;customer&#39;s account; ask for their email if you don&#39;t have it.&quot;</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_assistant</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">BaseChatModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">retriever</span><span class="p">:</span> <span class="n">BaseRetriever</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">checkpointer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">model</span> <span class="ow">or</span> <span class="n">get_model</span><span class="p">()</span>
+    <span class="n">tools</span> <span class="o">=</span> <span class="p">[</span><span class="n">make_search_docs</span><span class="p">(</span><span class="n">retriever</span> <span class="ow">or</span> <span class="n">build_retriever</span><span class="p">()),</span> <span class="n">check_subscription_status</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">create_agent</span><span class="p">(</span>
+        <span class="n">model</span><span class="p">,</span>
+        <span class="n">tools</span><span class="o">=</span><span class="n">tools</span><span class="p">,</span>
+        <span class="n">system_prompt</span><span class="o">=</span><span class="n">SYSTEM_PROMPT</span><span class="p">,</span>
+        <span class="n">middleware</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">ModelCallLimitMiddleware</span><span class="p">(</span><span class="n">run_limit</span><span class="o">=</span><span class="mi">6</span><span class="p">),</span>
+            <span class="n">SummarizationMiddleware</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">trigger</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;messages&quot;</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span> <span class="n">keep</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;messages&quot;</span><span class="p">,</span> <span class="mi">20</span><span class="p">)),</span>
+        <span class="p">],</span>
+        <span class="n">checkpointer</span><span class="o">=</span><span class="n">checkpointer</span> <span class="ow">or</span> <span class="n">InMemorySaver</span><span class="p">(),</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;tidewave_assistant&quot;</span><span class="p">,</span>
+    <span class="p">)</span></code></pre></div>
+<p><code>create_agent</code> from Article 13, with two tools instead of one and <code>InMemorySaver</code> providing the <code>checkpointer</code>-based memory Article 8 pointed toward. The rest comes straight from Article 13's middleware section:</p>
+<ul><li><strong><code>ModelCallLimitMiddleware(run_limit=6)</code></strong> caps each <code>invoke()</code> at six model calls. A normal answer here takes two or three, so this only fires when something has gone wrong, a model stuck re-calling a tool, instead of leaving LangGraph's roughly 10,000-step default as the only stop.</li><li><strong><code>SummarizationMiddleware</code></strong> is Article 8's history-growth problem, solved the agent way. Once a thread passes 40 messages, older ones are condensed into a summary by the same model and the most recent 20 are kept as they are. Tested with the thresholds turned down to 6 and 4: after a few turns, each thread's history stayed at six messages instead of growing, a summary message first.</li><li><strong><code>name="tidewave_assistant"</code></strong> is Article 14's detail: it names the root of every trace, so these runs are easy to find in LangSmith.</li></ul>
+<p>The system prompt is the one piece of writing in the project that isn't lifted from an earlier article, and it earns its place: with two tools, the model benefits from being told what each is for, the same lesson Article 12 made about a tool's docstring, applied to the assistant's own instructions. Its last clause, asking for an email when there isn't one, matters more than it looks, and the section on what this project leaves out comes back to it.</p>
+<h2 id="main-py-article-14-and-the-entry-point"><code>main.py</code>: Article 14, and the entry point</h2>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
+
+<span class="n">load_dotenv</span><span class="p">()</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;LANGSMITH_TRACING&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">assistant</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_assistant</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">knowledge_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_retriever</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">triage</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_triage</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">agent</span> <span class="o">=</span> <span class="n">build_assistant</span><span class="p">(</span><span class="n">retriever</span><span class="o">=</span><span class="n">build_retriever</span><span class="p">(</span><span class="n">persist_directory</span><span class="o">=</span><span class="s2">&quot;.chroma&quot;</span><span class="p">))</span>
+    <span class="n">triage</span> <span class="o">=</span> <span class="n">build_triage</span><span class="p">()</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="s2">&quot;customer-sam&quot;</span><span class="p">}}</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">user_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;You: &quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">user_input</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;quit&quot;</span><span class="p">,</span> <span class="s2">&quot;exit&quot;</span><span class="p">):</span>
+            <span class="k">break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">user_input</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">classification</span> <span class="o">=</span> <span class="n">triage</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="n">user_input</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">classification</span><span class="o">.</span><span class="n">priority</span> <span class="o">==</span> <span class="s2">&quot;high&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[escalation] </span><span class="si">{</span><span class="n">classification</span><span class="o">.</span><span class="n">category</span><span class="si">}</span><span class="s2">, high priority: </span><span class="si">{</span><span class="n">classification</span><span class="o">.</span><span class="n">summary</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span>
+            <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">user_input</span><span class="p">}]},</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Assistant:&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span></code></pre></div>
+<p><code>os.environ.setdefault("LANGSMITH_TRACING", "true")</code> is the only line in the project dedicated to observability, and Article 14 is why one line is enough: every model call, every tool execution inside <code>agent.invoke()</code>, and triage's own model call all get traced, because all of it is built on <code>Runnable</code>. It sits right after <code>load_dotenv()</code> and before any project import, so tracing is switched on before anything runs, and <code>setdefault</code> means a <code>LANGSMITH_TRACING=false</code> in <code>.env</code> still wins. Expect two traces per message in LangSmith, one for triage and one rooted at <code>tidewave_assistant</code>, since they're two separate <code>invoke()</code> calls.</p>
+<p>The reply is printed with <code>.text</code>, not <code>.content</code>, the Article 5 rule: Claude's messages carry thinking blocks, so <code>.content</code> is a list, and printing it would dump raw blocks at the customer. <code>build_retriever(persist_directory=".chroma")</code> is where the saved index comes from. Wrapping everything in <code>main()</code> behind <code>if __name__ == "__main__":</code> means importing <code>main.py</code>, from a test, say, doesn't start an input loop.</p>
+<h2 id="setup-files">Setup files</h2>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>langchain&gt;=1.4
+langchain-anthropic&gt;=1.7
+langchain-openai&gt;=1.6
+langchain-chroma&gt;=1.1
+langchain-text-splitters&gt;=1.1
+langsmith&gt;=0.14
+python-dotenv&gt;=1.0
+pytest&gt;=8.0</code></pre></div>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+LANGSMITH_API_KEY=lsv2_...
+LANGSMITH_PROJECT=tidewave-assistant</code></pre></div>
+<p><code>pip install -r requirements.txt</code>, copy <code>.env.example</code> to <code>.env</code> with real keys, and <code>python main.py</code> starts the assistant. <code>langgraph</code> isn't listed because <code>langchain</code> already depends on it (Article 13). Three keys for three separate concerns: Anthropic for chat, OpenAI for embeddings, LangSmith for traces.</p>
+<h2 id="running-it-for-real-the-test-suite">Running it for real: the test suite</h2>
+<p>Two of this project's three services, Anthropic and OpenAI, need real API keys. Proving the seven modules actually connect, not just read like they should, means standing in for exactly three decisions: which tool the agent calls, how triage classifies a message, and what a text's embedding vector is. Those stand-ins live in one file, used only by the tests:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="sd">&quot;&quot;&quot;Stand-ins that let the whole project run with no API keys.</span>
+
+<span class="sd">Each one replaces exactly one external decision: which tool to call,</span>
+<span class="sd">how to classify a message, or what a text&#39;s embedding vector is.</span>
+<span class="sd">Everything else in the project runs unmodified.&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">Counter</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.embeddings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Embeddings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.language_models.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseChatModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.messages</span><span class="w"> </span><span class="kn">import</span> <span class="n">AIMessage</span><span class="p">,</span> <span class="n">HumanMessage</span><span class="p">,</span> <span class="n">ToolMessage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.outputs</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatGeneration</span><span class="p">,</span> <span class="n">ChatResult</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.runnables</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunnableLambda</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">triage</span><span class="w"> </span><span class="kn">import</span> <span class="n">TicketClassification</span>
+
+<span class="n">VOCAB</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="s2">&quot;bill&quot;</span><span class="p">,</span> <span class="s2">&quot;refund&quot;</span><span class="p">,</span> <span class="s2">&quot;team&quot;</span><span class="p">,</span> <span class="s2">&quot;enterprise&quot;</span><span class="p">,</span> <span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="s2">&quot;slack&quot;</span><span class="p">]</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ToyEmbeddings</span><span class="p">(</span><span class="n">Embeddings</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Article 10&#39;s normalized bag-of-words vectorizer.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_vectorize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">[</span><span class="n">w</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">w</span>
+                 <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[a-z]+&quot;</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">())]</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">(</span><span class="n">words</span><span class="p">)</span>
+        <span class="n">vec</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">term</span> <span class="ow">in</span> <span class="n">VOCAB</span><span class="p">]</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">vec</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">x</span> <span class="o">/</span> <span class="n">norm</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">vec</span><span class="p">]</span> <span class="k">if</span> <span class="n">norm</span> <span class="k">else</span> <span class="n">vec</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">embed_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">texts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_vectorize</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">texts</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">embed_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vectorize</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FakeAssistantModel</span><span class="p">(</span><span class="n">BaseChatModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Picks a tool by keyword in the latest question, then answers with</span>
+<span class="sd">    the tool&#39;s result. A real model reasons about which tool to call;</span>
+<span class="sd">    this picks deterministically so the run is reproducible. Only the</span>
+<span class="sd">    most recent message is checked for a tool result, so a stale one</span>
+<span class="sd">    from an earlier turn in the same thread isn&#39;t mistaken for a fresh</span>
+<span class="sd">    answer.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">run_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChatResult</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">messages</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ToolMessage</span><span class="p">):</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">AIMessage</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Here&#39;s what I found: </span><span class="si">{</span><span class="n">messages</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">content</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ChatResult</span><span class="p">(</span><span class="n">generations</span><span class="o">=</span><span class="p">[</span><span class="n">ChatGeneration</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">)])</span>
+
+        <span class="n">turn</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">HumanMessage</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">)</span>
+        <span class="n">question</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">content</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">HumanMessage</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;subscription&quot;</span> <span class="ow">in</span> <span class="n">question</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">&quot;status&quot;</span> <span class="ow">in</span> <span class="n">question</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="s2">&quot;check_subscription_status&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;customer_email&quot;</span><span class="p">:</span> <span class="s2">&quot;sam@example.com&quot;</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="s2">&quot;search_docs&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">question</span><span class="p">}</span>
+        <span class="n">tool_call</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="n">args</span><span class="p">,</span> <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;call_</span><span class="si">{</span><span class="n">turn</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;tool_call&quot;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">ChatResult</span><span class="p">(</span><span class="n">generations</span><span class="o">=</span><span class="p">[</span><span class="n">ChatGeneration</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="n">AIMessage</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">tool_calls</span><span class="o">=</span><span class="p">[</span><span class="n">tool_call</span><span class="p">]))])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">bind_tools</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tools</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_llm_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;fake-assistant-model&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_classify</span><span class="p">(</span><span class="n">prompt_value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TicketClassification</span><span class="p">:</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="n">prompt_value</span><span class="o">.</span><span class="n">to_messages</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">urgent</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">message</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;asap&quot;</span><span class="p">,</span> <span class="s2">&quot;immediately&quot;</span><span class="p">,</span> <span class="s2">&quot;urgent&quot;</span><span class="p">))</span>
+    <span class="n">is_billing</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">w</span> <span class="ow">in</span> <span class="n">message</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;charge&quot;</span><span class="p">,</span> <span class="s2">&quot;refund&quot;</span><span class="p">,</span> <span class="s2">&quot;billing&quot;</span><span class="p">,</span> <span class="s2">&quot;payment&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">TicketClassification</span><span class="p">(</span>
+        <span class="n">category</span><span class="o">=</span><span class="s2">&quot;billing&quot;</span> <span class="k">if</span> <span class="n">is_billing</span> <span class="k">else</span> <span class="s2">&quot;other&quot;</span><span class="p">,</span>
+        <span class="n">priority</span><span class="o">=</span><span class="s2">&quot;high&quot;</span> <span class="k">if</span> <span class="p">(</span><span class="n">urgent</span> <span class="ow">and</span> <span class="n">is_billing</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;low&quot;</span><span class="p">,</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">message</span><span class="p">[:</span><span class="mi">60</span><span class="p">],</span>
+    <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FakeTriageModel</span><span class="p">(</span><span class="n">BaseChatModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Keyword matching in place of a real model reading the message.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">run_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChatResult</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;only used through with_structured_output&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">with_structured_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">RunnableLambda</span><span class="p">(</span><span class="n">_classify</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_llm_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;fake-triage-model&quot;</span></code></pre></div>
+<p><code>ToyEmbeddings</code> is Article 10's normalized toy vectorizer, <code>FakeAssistantModel</code> is Article 13's <code>FakeAgentModel</code> grown to route between two tools, and <code>FakeTriageModel</code> returns a keyword-matching classifier from <code>with_structured_output</code>, the one method <code>build_triage</code> calls on it. <code>FakeAssistantModel</code> gives each turn's tool call its own id, <code>call_1</code>, <code>call_2</code>, since ids should be unique within a thread. The tests import everything else from the real, unmodified modules:</p>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+<span class="n">ROOT</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ROOT</span><span class="p">))</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">ROOT</span> <span class="o">/</span> <span class="s2">&quot;tests&quot;</span><span class="p">))</span></code></pre></div>
+<div class="code"><div class="code-head"><span class="code-lang">python</span><button class="copy-btn" type="button">Copy</button></div><pre><code><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">assistant</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_assistant</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fakes</span><span class="w"> </span><span class="kn">import</span> <span class="n">FakeAssistantModel</span><span class="p">,</span> <span class="n">FakeTriageModel</span><span class="p">,</span> <span class="n">ToyEmbeddings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">knowledge_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_retriever</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_subscription_status</span><span class="p">,</span> <span class="n">make_search_docs</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">triage</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_triage</span>
+
+<span class="n">DOCS</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;tidewave_docs&quot;</span><span class="p">)</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span><span class="p">(</span><span class="n">scope</span><span class="o">=</span><span class="s2">&quot;module&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">retriever</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">build_retriever</span><span class="p">(</span><span class="n">DOCS</span><span class="p">,</span> <span class="n">embedding</span><span class="o">=</span><span class="n">ToyEmbeddings</span><span class="p">())</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_retriever_finds_refund_policy</span><span class="p">(</span><span class="n">retriever</span><span class="p">):</span>
+    <span class="n">docs</span> <span class="o">=</span> <span class="n">retriever</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;How do refunds work?&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;## Refunds&quot;</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">page_content</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_search_docs_tool</span><span class="p">(</span><span class="n">retriever</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">make_search_docs</span><span class="p">(</span><span class="n">retriever</span><span class="p">)</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;How do refunds work?&quot;</span><span class="p">})</span>
+    <span class="k">assert</span> <span class="s2">&quot;billing@tidewave.example&quot;</span> <span class="ow">in</span> <span class="n">result</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_subscription_tool_normalizes_email</span><span class="p">():</span>
+    <span class="k">assert</span> <span class="n">check_subscription_status</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;customer_email&quot;</span><span class="p">:</span> <span class="s2">&quot; Sam@Example.com &quot;</span><span class="p">})</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Team plan&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">check_subscription_status</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;customer_email&quot;</span><span class="p">:</span> <span class="s2">&quot;nobody@example.com&quot;</span><span class="p">})</span> <span class="o">==</span> <span class="s2">&quot;No account found for that email.&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_triage_flags_urgent_billing</span><span class="p">():</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">build_triage</span><span class="p">(</span><span class="n">FakeTriageModel</span><span class="p">())</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span>
+        <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;My card was charged twice this month, I need a refund ASAP.&quot;</span><span class="p">}</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">category</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">priority</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s2">&quot;billing&quot;</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_agent_routes_and_remembers</span><span class="p">(</span><span class="n">retriever</span><span class="p">):</span>
+    <span class="n">agent</span> <span class="o">=</span> <span class="n">build_assistant</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">FakeAssistantModel</span><span class="p">(),</span> <span class="n">retriever</span><span class="o">=</span><span class="n">retriever</span><span class="p">)</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="s2">&quot;customer-sam&quot;</span><span class="p">}}</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;How do refunds work?&quot;</span><span class="p">}]},</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+    <span class="n">second</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;What&#39;s my subscription status?&quot;</span><span class="p">}]},</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="n">tools_called</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">second</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;tool&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">tools_called</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;search_docs&quot;</span><span class="p">,</span> <span class="s2">&quot;check_subscription_status&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">second</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">8</span>
+    <span class="k">assert</span> <span class="s2">&quot;Team plan&quot;</span> <span class="ow">in</span> <span class="n">second</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span>
+
+
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">skipif</span><span class="p">(</span><span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;ANTHROPIC_API_KEY&quot;</span><span class="p">),</span> <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;needs a real model&quot;</span><span class="p">)</span>
+<span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">parametrize</span><span class="p">(</span><span class="s2">&quot;question, expected_tool&quot;</span><span class="p">,</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">&quot;What does the Enterprise plan include?&quot;</span><span class="p">,</span> <span class="s2">&quot;search_docs&quot;</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;What&#39;s the status of my account? I&#39;m sam@example.com&quot;</span><span class="p">,</span> <span class="s2">&quot;check_subscription_status&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_live_tool_routing</span><span class="p">(</span><span class="n">retriever</span><span class="p">,</span> <span class="n">question</span><span class="p">,</span> <span class="n">expected_tool</span><span class="p">):</span>
+    <span class="n">agent</span> <span class="o">=</span> <span class="n">build_assistant</span><span class="p">(</span><span class="n">retriever</span><span class="o">=</span><span class="n">retriever</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span>
+        <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">question</span><span class="p">}]},</span>
+        <span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;routing-</span><span class="si">{</span><span class="n">expected_tool</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}},</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">expected_tool</span> <span class="ow">in</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;tool&quot;</span><span class="p">]</span></code></pre></div>
+<p>Run from the project folder, with no API keys set:</p>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>$ pytest -q
+.....ss                                                                  [100%]
+5 passed, 2 skipped</code></pre></div>
+<p>What each passing test proves:</p>
+<ul><li><strong><code>test_retriever_finds_refund_policy</code></strong>: <code>documents.py</code> and <code>knowledge_base.py</code> load, split, embed, and index the real docs, and "How do refunds work?" ranks the Refunds section first.</li><li><strong><code>test_search_docs_tool</code></strong>: the retriever, <code>format_docs</code>, and <code>@tool</code> compose into a working tool that returns the actual refund policy text.</li><li><strong><code>test_subscription_tool_normalizes_email</code></strong>: the lookup and the email clean-up both work, including the not-found path.</li><li><strong><code>test_triage_flags_urgent_billing</code></strong>: <code>build_triage</code> wires the template to the structured-output classifier; "charged twice... refund ASAP" comes back billing, high priority.</li><li><strong><code>test_agent_routes_and_remembers</code></strong>: the whole agent. Two turns on one thread: the refund question calls <code>search_docs</code>, the status question calls <code>check_subscription_status</code>, and the second result holds all eight messages from both turns, because the checkpointer loaded the first turn before the second ran. No branching code anywhere chose those tools; the model did.</li></ul>
+<p>The two skipped tests are the live half of the suite. They build the assistant with the real <code>get_model()</code> and check that Claude itself routes an Enterprise-plan question to <code>search_docs</code> and an account question to <code>check_subscription_status</code>. Set <code>ANTHROPIC_API_KEY</code> and they run. They're a small, honest start on the evaluation idea from Article 14: fixed inputs, checked against expected behavior, run every time a prompt or model changes. A real evaluation set would have dozens of questions and live in LangSmith, but the idea is the same.</p>
+<h2 id="what-one-message-actually-costs">What one message actually costs</h2>
+<p>The tests prove the pieces connect. To check that <code>main.py</code> makes the right calls against real provider APIs, it was also run end to end against stand-ins that accept or reject requests by each provider's documented September 2026 rules: Claude Sonnet 5, which rejects sampling parameters and requires its thinking blocks to be sent back unmodified during tool use; GPT-5.5; and Gemini 3.8 Flash. The CLI completed both turns on all three, switching providers through nothing but <code>get_model()</code>'s argument. The calls it made, in order, on first start with Claude:</p>
+<div class="code"><div class="code-head"><span class="code-lang">output</span><button class="copy-btn" type="button">Copy</button></div><pre><code>openai: embeddings (every chunk, once, at startup)
+anthropic: triage, structured output
+anthropic: tool request -&gt; search_docs
+openai: embeddings (the search query)
+anthropic: final answer
+anthropic: triage, structured output
+anthropic: tool request -&gt; check_subscription_status
+anthropic: final answer</code></pre></div>
+<div class="figure">
+  <svg viewBox="0 0 640 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="20" width="270" height="40" rx="6" fill="#ffffff" stroke="#E6E4DD" stroke-width="1.5"/>
+    <text x="145" y="44" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#1A1F2B">"My card was charged twice..."</text>
+
+    <path d="M145 60 L145 86" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowC2)"/>
+
+    <rect x="30" y="87" width="230" height="40" rx="6" fill="#8A5A9E" fill-opacity="0.10" stroke="#8A5A9E" stroke-width="1.5"/>
+    <text x="145" y="111" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#8A5A9E">triage.invoke() (triage.py)</text>
+
+    <text x="145" y="145" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="#8A5A9E" font-style="italic">[escalation] billing, high priority</text>
+
+    <rect x="340" y="20" width="270" height="40" rx="6" fill="#1E8A72" fill-opacity="0.10" stroke="#1E8A72" stroke-width="1.5"/>
+    <text x="475" y="44" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#1E8A72">agent.invoke() (assistant.py)</text>
+
+    <path d="M475 60 L475 86" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowC2)"/>
+
+    <rect x="365" y="87" width="220" height="40" rx="6" fill="#A8712E" fill-opacity="0.10" stroke="#A8712E" stroke-width="1.5"/>
+    <text x="475" y="111" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10.5" fill="#A8712E">search_docs(query) (tools.py)</text>
+
+    <path d="M475 127 L475 153" stroke="#B9B6AB" stroke-width="1.5" marker-end="url(#arrowC2)"/>
+
+    <rect x="345" y="154" width="260" height="40" rx="6" fill="#3D4FE0" fill-opacity="0.10" stroke="#3D4FE0" stroke-width="1.5"/>
+    <text x="475" y="178" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#3D4FE0">retriever | format_docs</text>
+
+    <text x="320" y="230" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70" font-style="italic">triage and the agent both run against the same</text>
+    <text x="320" y="248" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#565F70" font-style="italic">message, independently, from the same main.py loop</text>
+
+    <defs>
+      <marker id="arrowC2" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 Z" fill="#B9B6AB"/>
+      </marker>
+    </defs>
+  </svg>
+  <div class="figure-caption">Fig. 2. One message, two independent paths: triage flags it for a human while the agent answers it, neither one blocking the other.</div>
+</div>
+<div class="note"><p class="note-label">Cost note</p><p>Worth reading as a bill. Every customer message costs three model calls, one for triage and two for the agent's request-then-answer loop, plus an embedding call whenever the agent searches the docs. The startup embedding of every chunk happens once: on a second start, with <code>.chroma</code> already on disk, that first line disappeared. And triage is an entire model call spent on classification, so it's the natural first place to use a cheaper, faster model: <code>build_triage(get_model("anthropic:claude-haiku-4-5"))</code>.</p></div>
+<h2 id="what-this-deliberately-leaves-out">What this deliberately leaves out</h2>
+<p>A few things a production support assistant needs aren't in this project, worth naming rather than pretending they're covered:</p>
+<ul><li><strong>Who the customer actually is.</strong> <code>check_subscription_status</code> looks up whatever email appears in the conversation, so anyone could type Sam's email and read Sam's account. In a real deployment, the customer's identity comes from your login system, and the tool looks up the signed-in account rather than trusting an email the model extracted from a chat message. That's also why the system prompt asks for an email instead of guessing: it keeps the demo honest, but it isn't authentication.</li><li><strong>Memory that survives a restart.</strong> <code>InMemorySaver</code> loses every thread when the process exits. Article 13's <code>SqliteSaver</code> or <code>PostgresSaver</code> is a constructor change in <code>build_assistant</code>.</li><li><strong>A human in the loop.</strong> Triage flags urgent billing messages, but nothing stops the agent from answering them anyway. <code>HumanInTheLoopMiddleware</code> (Article 13) could pause those runs for a person to approve.</li><li><strong>Raw provider SDKs</strong> (Articles 2 through 4): <code>api.openai.com</code> and <code>api.anthropic.com</code> appear nowhere in this project, and there are no manually managed message lists or hand-checked parameter ranges. That absence is the payoff of starting below the framework: everything those articles taught by hand is what <code>get_model()</code> and <code>create_agent</code> do underneath.</li></ul>
+<h2 id="the-whole-arc-looking-back">The whole arc, looking back</h2>
+<p>Article 1 opened with a claim worth checking against everything above: a framework's abstractions only really make sense once you've felt the problem they solve yourself. <code>get_model()</code> is one line because Articles 2 through 5 made you feel three SDKs disagree first. <code>search_docs</code> is a few lines because Articles 10 and 11 made you debug a vector store's wrong answer by hand first. <code>assistant.py</code> fits on one screen because Article 12 made you write the tool-calling loop yourself before <code>create_agent</code> was allowed to run it for you. Every short module in this project is short for a specific, earned reason, not because the underlying problem was ever simple.</p>
+<p class="closing">That's the series. Tidewave's assistant is a small project, deliberately, but every line in it does a job you watched get built, one article at a time, and the test suite means you can change any of it and know within seconds whether it still works.</p>
+
+      <nav class="pager" aria-label="Series navigation">
+        <a class="pager-card prev" href="article-14-langsmith-observability.html">
+          <span class="pager-label">&larr; Previous · Article 14</span>
+          <span class="pager-title">Observability with LangSmith</span>
+        </a>
+        <a class="pager-card next" href="article-01-genai-basics-langchain.html">
+          <span class="pager-label">Back to the start · Article 1 &rarr;</span>
+          <span class="pager-title">Generative AI basics, and where LangChain actually fits</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <span class="footer-mark">Learning LangChain</span>
+    <span>A hands-on, 15-part series on LangChain 1.x</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var bar = document.getElementById('progressBar');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.prose h2[id], .prose h3[id]'));
+  var ticking = false;
+
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var height = doc.scrollHeight - doc.clientHeight;
+    var pct = height > 0 ? Math.min(100, (scrollTop / height) * 100) : 0;
+    if (bar) bar.style.width = pct + '%';
+
+    if (!sections.length || !links.length) return;
+    var current = null;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].getBoundingClientRect().top - 120 <= 0) current = sections[i];
+    }
+    links.forEach(function (l) { l.classList.remove('active'); });
+    if (current) {
+      var link = document.querySelector('.toc a[href="#' + current.id + '"]');
+      if (link) link.classList.add('active');
+    }
+  }
+
+  function onScroll() {
+    if (!ticking) { ticking = true; window.requestAnimationFrame(update); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+
+  function copyText(text, done) {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  Array.prototype.slice.call(document.querySelectorAll('.copy-btn')).forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.code').querySelector('pre code');
+      copyText(code.innerText, function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      });
+    });
+  });
+})();
+
+</script>
+</body>
+</html>
